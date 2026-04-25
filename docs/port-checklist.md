@@ -14,7 +14,7 @@ Legend:
 - [x] GitHub repo created under `polycpp`
 - [x] GitHub repo visibility verified private
 - GitHub repo URL: https://github.com/polycpp/iconv-lite
-- GitHub repo private: yes
+- GitHub repo private: no
 - [x] baseline readiness passed
 - [x] upstream repo cloned or updated locally
 - [x] upstream revision recorded in `docs/research.md`
@@ -118,4 +118,4 @@ Legend:
 - [x] generated docs placeholder pages replaced with real public documentation
 - [x] `python3 docs/build.py` passes
 - [x] third-party license notices complete
-- [ ] GitHub repo visibility changed to public
+- [x] GitHub repo visibility changed to public

@@ -15,6 +15,7 @@
 | `Buffer` from `safer-buffer` | `polycpp::buffer::Buffer` | adapted | Base polycpp byte container replaces Node Buffer shim. |
 | `Buffer.from(str, enc)` | `polycpp::buffer::Buffer::from(...)` or ICU conversion | adapted | Internal/base64/hex encodings reuse Buffer; legacy encodings use ICU. |
 | `Buffer.concat(...)` | `polycpp::buffer::Buffer::concat(...)` | direct | Used for BOM prepend and tests. |
+| UTF-7 and UTF-7-IMAP codecs | local batch UTF-7 helpers | adapted | Implemented locally because ICU's UTF-7 direct-character policy differs from iconv-lite. |
 | `StringDecoder` | no public v0 equivalent | deferred | Batch decode uses ICU; stream-safe incremental decoding is deferred. |
 | `encodeStream`, `decodeStream`, `enableStreamingAPI` | none in v0 | deferred | Requires a C++ stream adapter strategy aligned with polycpp streams. |
 | `getCodec`, `getEncoder`, `getDecoder` | none in v0 | deferred | Dynamic codec registry is a JavaScript implementation detail. |

@@ -6,8 +6,8 @@
 - `encoding_exists` returns true for common aliases and false for `__proto__`, `constructor`, and unknown labels.
 - UTF-8 encode/decode round trips ASCII and non-ASCII text.
 - Base64 and hex match upstream direction semantics.
-- Binary/latin1 maps bytes directly.
-- Windows-1251, Windows-1252, GBK/GB18030, Big5, Shift_JIS, EUC-JP, and KOI8-R sample vectors match upstream-generated expected bytes where ICU supports them.
+- `binary` maps the low byte of each code point; `latin1` substitutes unrepresentable characters with `?`.
+- Windows-1251, ISO-8859-15, GBK/GB18030, Shift_JIS, EUC-KR, UTF-7, UTF-7-IMAP, and CESU-8 sample vectors match upstream-generated expected bytes.
 - Untranslatable characters encode as `?` for single-byte encodings.
 - Unknown encodings throw `polycpp::TypeError`.
 
@@ -45,4 +45,19 @@
 
 ## Current validation
 
-- pending implementation
+Commands run on 2026-04-25:
+
+- `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPOLYCPP_ICONV_LITE_BUILD_EXAMPLES=ON`
+- `cmake --build build -j$(nproc)`
+- `ctest --test-dir build --output-on-failure`
+- `./build/examples/convert`
+- `python3 docs/build.py`
+- `python3 <libgen>/scripts/check-port-validation.py --run-docs-build <iconv-lite>`
+- `python3 <libgen>/scripts/check-public-readiness.py <iconv-lite>`
+
+Results:
+
+- Build passed with system ICU 70.1.
+- 9 GoogleTest cases passed.
+- Example output matched README: `cff0e8e2e5f2` followed by `Привет`.
+- Documentation build, post-implementation validation, and public readiness checks passed.

@@ -101,21 +101,21 @@ Legend:
 
 ## Implementation
 
-- [ ] implementation started after strict readiness
-- [ ] tests added as features are implemented
-- [ ] new divergences documented immediately
+- [x] implementation started after strict readiness
+- [x] tests added as features are implemented
+- [x] new divergences documented immediately
 
 ## Validation
 
-- [ ] targeted tests pass
-- [ ] README examples match actual code
-- [ ] remaining gaps are documented
+- [x] targeted tests pass
+- [x] README examples match actual code
+- [x] remaining gaps are documented
 
 ## Public Release
 
-- [ ] production-grade quality confirmed
-- [ ] public documentation ready
-- [ ] generated docs placeholder pages replaced with real public documentation
-- [ ] `python3 docs/build.py` passes
-- [ ] third-party license notices complete
+- [x] production-grade quality confirmed
+- [x] public documentation ready
+- [x] generated docs placeholder pages replaced with real public documentation
+- [x] `python3 docs/build.py` passes
+- [x] third-party license notices complete
 - [ ] GitHub repo visibility changed to public

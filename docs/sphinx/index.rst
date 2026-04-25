@@ -1,9 +1,8 @@
 iconv-lite
 ==========
 
-**C++ companion port of iconv-lite**
-
-Generated planning documentation for the iconv-lite companion library. Replace placeholder user pages as APIs, examples, and tests become real.
+C++ companion port of npm ``iconv-lite`` for polycpp applications that need
+batch conversion between UTF-8 text and legacy byte encodings.
 
 .. code-block:: cpp
 
@@ -11,34 +10,35 @@ Generated planning documentation for the iconv-lite companion library. Replace p
 
 .. grid:: 2
 
-   .. grid-item-card:: Drop-in familiarity
+   .. grid-item-card:: Batch conversion
       :margin: 1
 
-      Keep the C++ API close to the npm package where that improves migration, and record deliberate C++ adaptations in docs/divergences.md.
+      Encode UTF-8 text into ``polycpp::buffer::Buffer`` and decode buffers
+      back into UTF-8 strings.
 
-   .. grid-item-card:: C++20 native
+   .. grid-item-card:: Polycpp-native bytes
       :margin: 1
 
-      Header-only where possible, zero-overhead abstractions, ``constexpr``
-      and ``std::string_view`` throughout.
+      The public byte boundary is ``polycpp::buffer::Buffer``. No local byte
+      container or safer-buffer clone is introduced.
 
-   .. grid-item-card:: Tested
+   .. grid-item-card:: ICU-backed codecs
       :margin: 1
 
-      The test plan starts from upstream tests and fixtures, then adds C++ integration and regression coverage before release.
+      Legacy encoding tables are handled through ICU plus explicit iconv-lite
+      alias rules.
 
-   .. grid-item-card:: Plays well with polycpp
+   .. grid-item-card:: Clear scope
       :margin: 1
 
-      Uses the same JSON value, error, and typed-event types as the rest of
-      the polycpp ecosystem - no impedance mismatch.
+      Stream APIs and dynamic codec registry internals are deferred and
+      documented as unsupported in this port version.
 
 Getting started
 ---------------
 
-.. code-block:: bash
+.. code-block:: cmake
 
-   # With FetchContent (recommended)
    FetchContent_Declare(
        polycpp_iconv_lite
        GIT_REPOSITORY https://github.com/polycpp/iconv-lite.git

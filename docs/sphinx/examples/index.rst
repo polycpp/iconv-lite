@@ -1,14 +1,13 @@
 Examples
 ========
 
-Self-contained programs exercising the main features of iconv-lite. Each
-released example must compile against the public API only - no private
-headers, no non-exported targets.
+Self-contained programs exercising the public API. Each example builds against
+``polycpp::iconv_lite`` without private headers.
 
 .. toctree::
    :maxdepth: 1
 
-   planned
+   convert
 
 Running an example
 ------------------
@@ -17,8 +16,6 @@ From the repository root:
 
 .. code-block:: bash
 
-   cmake -B build -G Ninja
-   cmake --build build --target <example_name>
-   ./build/examples/<example_name>
-
-Examples are only built when ``POLYCPP_ICONV_LITE_BUILD_EXAMPLES=ON`` is passed to CMake.
+   cmake -B build -G Ninja -DPOLYCPP_ICONV_LITE_BUILD_EXAMPLES=ON
+   cmake --build build --target convert
+   ./build/examples/convert

@@ -40,7 +40,7 @@
 - permissive dependencies requiring notices: upstream `iconv-lite` MIT notice and `safer-buffer` MIT notice
 - dev/test-only dependencies excluded from shipped artifacts: `@arethetypeswrong/cli`, `@types/node`, `async`, `bench-node`, `eslint`, `iconv`, `mocha`, `nyc`, `request`, `typescript`, `unorm`, and webpack test dependencies
 - dependency license notices to add to `THIRD_PARTY_LICENSES.md`: upstream `iconv-lite` and npm dependency `safer-buffer`
-- native dependency note: ICU is used as a build/runtime library through CMake/polycpp; ICU uses Unicode/ICU license terms and is not vendored in this repo
+- native dependency note: ICU is used as a build/runtime library through CMake/polycpp; this repo accepts either the `ICU::uc` target or CMake's `ICU_UC_LIBRARIES` variable; ICU uses Unicode/ICU license terms and is not vendored in this repo
 
 ## Transitive dependency summary
 

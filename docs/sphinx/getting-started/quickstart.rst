@@ -1,46 +1,44 @@
 Quickstart
 ==========
 
-This page walks through a minimal iconv-lite program end-to-end. Copy the
-snippet, run it, then jump to :doc:`../tutorials/index` for task-oriented
-walkthroughs or :doc:`../api/index` for the full reference.
-
-The first quickstart should be written after a real public API slice exists.
+This program encodes UTF-8 text to Windows-1251 bytes and decodes those bytes
+back to UTF-8.
 
 Full example
 ------------
 
 .. code-block:: cpp
 
+   #include <iostream>
+
    #include <polycpp/iconv_lite/iconv_lite.hpp>
 
    int main() {
-       return 0;
+       auto bytes = polycpp::iconv_lite::encode("Привет", "win1251");
+       std::cout << bytes.toString("hex") << "\n";
+       std::cout << polycpp::iconv_lite::decode(bytes, "cp1251") << "\n";
    }
 
-Compile it with the same CMake wiring from :doc:`installation`:
+Build and run it with the CMake wiring from :doc:`installation`.
 
-.. code-block:: bash
-
-   cmake -B build -G Ninja
-   cmake --build build
-   ./build/my_app
-
-Expected output:
+Expected output
+---------------
 
 .. code-block:: text
 
-   (no output)
+   cff0e8e2e5f2
+   Привет
 
-What just happened
-------------------
+What happened
+-------------
 
-This generated placeholder proves the documentation tree builds. Replace it with the first real user workflow before public release.
+``encode`` accepted UTF-8 text and returned a ``polycpp::buffer::Buffer``.
+``decode`` accepted that buffer and returned a UTF-8 ``std::string``. The
+``win1251`` and ``cp1251`` labels resolve to the same Windows-1251 codec.
 
 Next steps
 ----------
 
-- :doc:`../tutorials/index` - step-by-step walkthroughs of common tasks.
-- :doc:`../guides/index` - short how-tos for specific problems.
-- :doc:`../api/index` - every public type, function, and option.
-- :doc:`../examples/index` - runnable programs you can drop into a sandbox.
+- :doc:`../tutorials/converting-text` for more encoding examples.
+- :doc:`../guides/bom-handling` for BOM options.
+- :doc:`../api/index` for the full public API.

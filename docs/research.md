@@ -119,7 +119,7 @@ Tests, fixtures, examples, and docs directories:
 - public header layout: `include/polycpp/iconv_lite/iconv_lite.hpp`
 - detail/private header strategy: keep implementation helpers in `src/iconv_lite.cpp`; only small template or inline helpers go in `detail/aggregator.hpp` if needed
 - aggregator header strategy: keep main public header as the only required include; detail aggregator can remain minimal if no template adapters are needed
-- examples strategy: provide a batch conversion example using Windows-1251 and UTF-16 BOM behavior
+- examples strategy: provide a batch conversion example using Windows-1251 encode/decode behavior
 - documentation site strategy: Doxygen plus Sphinx pages, with generated placeholder pages replaced before implementation validation
 - deliberate deviations from existing companions: this port requires ICU at build/runtime because generated JS encoding tables are not copied into the companion library
 
@@ -139,7 +139,7 @@ Tests, fixtures, examples, and docs directories:
 - upstream external services/protocols: none
 - native SDKs/client libraries to use: ICU `ucnv` converter APIs through system ICU/polycpp ICU dependency
 - SDKs/protocols explicitly not reimplemented: upstream generated SBCS/DBCS table compiler and Node stream engine are not reimplemented in v0
-- adapter/linking strategy: require ICU in this companion CMake, require polycpp's ICU Unicode backend, link `polycpp` and `ICU::uc`
+- adapter/linking strategy: require ICU in this companion CMake, require polycpp's ICU Unicode backend, link `polycpp` and ICU `uc` through either `ICU::uc` or the classic `ICU_UC_LIBRARIES` variable
 - test environment needs: system ICU, CMake, GoogleTest, and Node/npm only for generating/adapting expected upstream test vectors during development
 
 ## Security and fail-closed review

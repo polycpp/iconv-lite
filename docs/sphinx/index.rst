@@ -22,11 +22,11 @@ batch conversion between UTF-8 text and legacy byte encodings.
       The public byte boundary is ``polycpp::buffer::Buffer``. No local byte
       container or safer-buffer clone is introduced.
 
-   .. grid-item-card:: ICU-backed codecs
+   .. grid-item-card:: Upstream table codecs
       :margin: 1
 
-      Legacy encoding tables are handled through ICU plus explicit iconv-lite
-      alias rules.
+      Legacy encoding tables are generated from the upstream iconv-lite
+      JavaScript data files and used by local C++ codecs.
 
    .. grid-item-card:: Clear scope
       :margin: 1

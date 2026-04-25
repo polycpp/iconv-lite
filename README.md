@@ -12,7 +12,7 @@ Implemented:
 
 - Batch `encode`, `decode`, `to_encoding`, `from_encoding`, `encoding_exists`, and `canonicalize_encoding`.
 - UTF-8, CESU-8, UTF-7, UTF-7-IMAP, UTF-16LE/BE/auto, UTF-32LE/BE/auto.
-- `base64`, `hex`, `binary`, ASCII, latin1, Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK, GB18030, Big5, EUC-JP, and EUC-KR through explicit aliases and ICU.
+- `base64`, `hex`, `binary`, ASCII, latin1, Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK, GB18030, Big5, EUC-JP, and EUC-KR through upstream generated tables and aliases.
 - BOM stripping and prepend behavior for BOM-aware encodings.
 - `polycpp::buffer::Buffer` as the byte boundary.
 
@@ -21,7 +21,7 @@ Deferred:
 - Node stream APIs: `encodeStream`, `decodeStream`, and `enableStreamingAPI`.
 - Dynamic codec registry APIs: `getCodec`, `getEncoder`, and `getDecoder`.
 - Mutable module globals such as `defaultCharUnicode` and `defaultCharSingleByte`.
-- Exact table parity for every upstream generated label when ICU does not expose equivalent mappings.
+- Node stream and dynamic codec registry parity.
 
 This repo does not imply full parity with upstream `iconv-lite`. Implemented and deferred behavior is tracked in `docs/research.md`, `docs/api-mapping.md`, and `docs/divergences.md`.
 
@@ -30,8 +30,13 @@ This repo does not imply full parity with upstream `iconv-lite`. Implemented and
 - C++20 compiler
 - CMake 3.20+
 - Ninja recommended
-- ICU development libraries
 - A polycpp checkout or network access for CMake FetchContent
+
+Standalone builds default embedded polycpp to `POLYCPP_UNICODE=builtin`
+because this companion owns its iconv-lite compatibility tables and does not
+need polycpp ICU/Intl. Consumers can pass `-DPOLYCPP_UNICODE=auto` or
+`-DPOLYCPP_UNICODE=icu` if their wider application needs those polycpp
+features.
 
 ## Build
 
@@ -41,6 +46,19 @@ cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ./build/examples/convert
 ```
+
+## Regenerating Encoding Tables
+
+The committed generated table header is derived from the published
+`iconv-lite@0.7.2` npm artifact. Regenerate it only when changing the upstream
+version basis:
+
+```bash
+node tools/generate_iconv_tables.js .tmp/npm-package include/polycpp/iconv_lite/detail/generated_tables.hpp
+```
+
+The generated header is source-controlled so downstream C++ consumers do not
+need Node/npm at build time.
 
 ## Usage
 

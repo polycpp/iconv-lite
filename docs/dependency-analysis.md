@@ -40,7 +40,7 @@
 - permissive dependencies requiring notices: upstream `iconv-lite` MIT notice and `safer-buffer` MIT notice
 - dev/test-only dependencies excluded from shipped artifacts: `@arethetypeswrong/cli`, `@types/node`, `async`, `bench-node`, `eslint`, `iconv`, `mocha`, `nyc`, `request`, `typescript`, `unorm`, and webpack test dependencies
 - dependency license notices to add to `THIRD_PARTY_LICENSES.md`: upstream `iconv-lite` and npm dependency `safer-buffer`
-- native dependency note: ICU is used as a build/runtime library through CMake/polycpp; this repo accepts either the `ICU::uc` target or CMake's `ICU_UC_LIBRARIES` variable; ICU uses Unicode/ICU license terms and is not vendored in this repo
+- native dependency note: no native encoding SDK is required; upstream iconv-lite tables are generated into `include/polycpp/iconv_lite/detail/generated_tables.hpp`; standalone builds default embedded polycpp to `POLYCPP_UNICODE=builtin`
 
 ## Transitive dependency summary
 
@@ -66,15 +66,15 @@
 ### Node.js API usage
 
 - `Buffer.from`, `Buffer.alloc`, `Buffer.concat`, and `Buffer.isBuffer` map to `polycpp::buffer::Buffer` APIs.
-- `string_decoder.StringDecoder` behavior is not exposed directly in v0; batch decode uses ICU and explicit BOM handling.
+- `string_decoder.StringDecoder` behavior is not exposed directly in v0; batch decode uses local table codecs and explicit BOM handling.
 - `stream.Transform` maps to deferred C++ stream integration; no local stream type is introduced.
 
 ### JavaScript API usage
 
 - `Array.prototype.push` and `slice` map to `std::vector` and `std::string` operations.
-- `String.prototype.charCodeAt` and `String.fromCharCode` behavior maps to UTF-8/UTF-16 conversion through ICU/polycpp.
+- `String.prototype.charCodeAt` and `String.fromCharCode` behavior maps to local UTF-8/UTF-16 helpers that preserve JavaScript UTF-16 code-unit semantics.
 - `RegExp.prototype.test` in canonicalization maps to deterministic ASCII normalization in C++.
-- Dynamic codec registry objects map to explicit alias normalization and ICU converter probing.
+- Dynamic codec registry objects map to explicit alias normalization and generated table lookup.
 
 ### Framework object boundary usage
 
@@ -85,9 +85,9 @@
 ## Porting decisions
 
 - Reuse `polycpp::buffer::Buffer` as the only public byte container.
-- Require ICU for v0 encode/decode instead of copying upstream generated tables.
+- Generate and use upstream iconv-lite SBCS/DBCS tables instead of relying on a platform encoding converter.
 - Keep the public C++ API batch-oriented and deterministic.
-- Implement explicit iconv-lite alias normalization before probing ICU.
+- Implement explicit iconv-lite alias normalization before generated table lookup.
 - Preserve core BOM semantics for UTF-8, UTF-16, and UTF-32.
 - Defer Node stream parity and dynamic codec registry APIs.
 

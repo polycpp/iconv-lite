@@ -1,15 +1,14 @@
 Installation
 ============
 
-``polycpp-iconv-lite`` targets C++20 and requires ICU because the port uses
-ICU converter APIs for legacy character sets.
+``polycpp-iconv-lite`` targets C++20 and uses generated table data from
+upstream ``iconv-lite`` for legacy character sets.
 
 Requirements
 ------------
 
 - CMake 3.20 or newer
 - A C++20 compiler
-- ICU development libraries
 - A polycpp checkout, or network access so CMake can fetch polycpp
 
 CMake FetchContent
@@ -31,8 +30,12 @@ Add the library to your ``CMakeLists.txt``:
    add_executable(my_app main.cpp)
    target_link_libraries(my_app PRIVATE polycpp::iconv_lite)
 
-The companion configures polycpp with ``POLYCPP_UNICODE=icu`` and links ICU's
-``uc`` library. Pin ``GIT_TAG`` to a release commit for reproducible builds.
+The companion links ``polycpp`` and does not require a direct ICU or iconv
+dependency. Standalone builds default embedded polycpp to
+``POLYCPP_UNICODE=builtin`` because iconv-lite compatibility is provided by the
+generated upstream tables. Consumers can pass ``-DPOLYCPP_UNICODE=auto`` or
+``-DPOLYCPP_UNICODE=icu`` if their wider application needs those polycpp
+features. Pin ``GIT_TAG`` to a release commit for reproducible builds.
 
 Using a local polycpp checkout
 ------------------------------

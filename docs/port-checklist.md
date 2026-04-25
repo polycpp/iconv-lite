@@ -65,6 +65,7 @@ Legend:
 - [x] `polycpp` module dependencies listed
 - [x] missing `polycpp` primitives listed
 - [x] external SDK/native driver strategy recorded
+- [x] compatibility foundation review completed
 - [x] security and fail-closed review completed
 
 ## API Mapping

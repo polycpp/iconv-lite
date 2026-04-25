@@ -95,20 +95,20 @@ Tests, fixtures, examples, and docs directories:
 
 - `.github/*`, `eslint.config.js`, `tsconfig.json`: upstream CI/lint/typecheck setup.
 - `performance/*`: benchmark harness only.
-- `generation/*`: used to build upstream JS data tables; the C++ port uses ICU/native conversion instead of vendoring generated JS tables.
+- `generation/*`: used by upstream to build JavaScript table files; the C++ port regenerates C++ table data from the published upstream package rather than delegating to a platform converter.
 - `test/webpack/*`: browser bundling checks, not relevant to native C++.
 
 ## Test directories worth mining first
 
 - `test`: adapt core encode/decode, BOM, UTF-16/UTF-32, CESU-8, and common legacy encoding samples.
-- Upstream tests with generated tables should be sampled rather than copied wholesale because the C++ port uses ICU conversion, not upstream table data.
+- Upstream tests with generated tables should be sampled rather than copied wholesale because the C++ port now uses upstream table data and should pin representative exact fixtures.
 
 ## Implementation risks discovered from the source layout
 
-- Upstream supports hundreds of labels through generated JS tables; the C++ port must avoid copying those tables unless needed and should rely on ICU aliases plus explicit compatibility aliases.
+- Upstream supports hundreds of labels through generated JS tables; the C++ port generates those tables into a committed C++ header and resolves aliases through the upstream registry.
 - `safer-buffer` and Node `Buffer` are upstream implementation dependencies; the C++ port must reuse `polycpp::buffer::Buffer`.
 - Upstream stream APIs depend on Node streams; the first C++ version should expose deterministic batch encode/decode and defer Node stream parity.
-- Encoding aliases such as `win1251`, `1251`, `utf16le`, `utf32le`, `binary`, and `ucs2` need explicit normalization because ICU does not accept every iconv-lite canonicalized label directly.
+- Encoding aliases such as `win1251`, `1251`, `utf16le`, `utf32le`, `binary`, and `ucs2` need explicit normalization because generated table lookup must follow iconv-lite canonicalized aliases exactly.
 - BOM behavior differs by encoding family and must be tested explicitly.
 - Untranslatable characters should substitute `?` on encode where possible, matching upstream behavior.
 
@@ -121,32 +121,41 @@ Tests, fixtures, examples, and docs directories:
 - aggregator header strategy: keep main public header as the only required include; detail aggregator can remain minimal if no template adapters are needed
 - examples strategy: provide a batch conversion example using Windows-1251 encode/decode behavior
 - documentation site strategy: Doxygen plus Sphinx pages, with generated placeholder pages replaced before implementation validation
-- deliberate deviations from existing companions: this port requires ICU at build/runtime because generated JS encoding tables are not copied into the companion library
+- deliberate deviations from existing companions: this port commits generated C++ data from upstream JavaScript encoding tables to preserve iconv-lite-specific compatibility without a native encoding SDK
 
 ## Polycpp ecosystem reuse analysis
 
-- polycpp core paths inspected: `include/polycpp/buffer/buffer.hpp`, `include/polycpp/buffer/detail/buffer.hpp`, `include/polycpp/string_decoder/string_decoder.hpp`, `include/polycpp/unicode/unicode.hpp`, `include/polycpp/unicode/encoding_converter.hpp`, `include/polycpp/unicode/detail/icu/icu_encoding_converter.hpp`
-- polycpp core types/functions selected: `polycpp::buffer::Buffer`, `Buffer::from`, `Buffer::toString`, `Buffer::concat`, `Buffer::data`, `Buffer::length`, `polycpp::TypeError`, and polycpp's ICU-enabled Unicode build configuration
-- polycpp core types/functions rejected: `polycpp::unicode::EncodingConverter` is decode-only today, so this port uses ICU directly for encode and decode while still following the polycpp Unicode backend strategy
+- polycpp core paths inspected: `include/polycpp/buffer/buffer.hpp`, `include/polycpp/buffer/detail/buffer.hpp`, and `include/polycpp/string_decoder/string_decoder.hpp`
+- polycpp core types/functions selected: `polycpp::buffer::Buffer`, `Buffer::from`, `Buffer::toString`, `Buffer::concat`, `Buffer::data`, `Buffer::length`, and `polycpp::TypeError`
+- polycpp core types/functions rejected: `polycpp::unicode::EncodingConverter`; this package needs iconv-lite-specific table parity rather than a platform converter abstraction
 - companion libs inspected for reusable APIs: current companion libs under local polycpp companion checkout; no existing encoding-conversion companion exists
 - companion libs selected for reuse: none
 - companion libs rejected or deferred: no separate `safer-buffer` companion; its purpose is already covered by `polycpp::buffer::Buffer`
 - new local abstractions introduced: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `encode`, `decode`, `encoding_exists`, and `canonicalize_encoding`; these model iconv-lite policy, not a new binary buffer type
-- reuse risks or integration gaps: direct ICU usage duplicates some logic that should eventually move into a bidirectional `polycpp::unicode::EncodingConverter`; this is recorded as a libgen/polycpp feedback item if it recurs
+- reuse risks or integration gaps: this repo now owns generated table data; regenerate it when the upstream version basis changes and keep provenance documented
 
 ## External SDK and native driver strategy
 
 - upstream external services/protocols: none
-- native SDKs/client libraries to use: ICU `ucnv` converter APIs through system ICU/polycpp ICU dependency
-- SDKs/protocols explicitly not reimplemented: upstream generated SBCS/DBCS table compiler and Node stream engine are not reimplemented in v0
-- adapter/linking strategy: require ICU in this companion CMake, require polycpp's ICU Unicode backend, link `polycpp` and ICU `uc` through either `ICU::uc` or the classic `ICU_UC_LIBRARIES` variable
-- test environment needs: system ICU, CMake, GoogleTest, and Node/npm only for generating/adapting expected upstream test vectors during development
+- native SDKs/client libraries to use: none for encoding conversion; generated table data comes from the upstream npm artifact
+- SDKs/protocols explicitly not reimplemented: Node stream engine is not reimplemented in v0
+- adapter/linking strategy: link `polycpp` only; do not add a direct ICU/iconv dependency for this companion; default embedded polycpp to `POLYCPP_UNICODE=builtin` unless the consumer explicitly selects another backend
+- test environment needs: CMake and GoogleTest for normal validation; Node/npm only when regenerating upstream-derived tables or expected fixtures
+- table regeneration command: `node tools/generate_iconv_tables.js .tmp/npm-package include/polycpp/iconv_lite/detail/generated_tables.hpp`
+
+## Compatibility foundation review
+
+- downstream dependency role: foundational compatibility package; many npm packages use iconv-lite transitively for package-specific encoding label and byte conversion behavior
+- native substitution risk: high; a platform converter can differ from iconv-lite aliases, UTF-7 behavior, GB18030 mapping details, surrogate handling, and substitution rules
+- upstream implementation data to preserve: generated SBCS/DBCS tables, encoding alias registry, BOM defaults, UTF-7/UTF-7-IMAP logic, CESU-8 behavior, and default `?` encode substitution
+- generated or vendored data plan: commit generated C++ table data derived from the published `iconv-lite@0.7.2` npm artifact; do not vendor upstream JavaScript source files
+- compatibility fixture strategy: keep byte-level fixtures generated from upstream for representative SBCS, DBCS, UTF, BOM, alias, unknown-label, and untranslatable-character behavior
 
 ## Security and fail-closed review
 
 - security-sensitive behavior: medium; decoding untrusted bytes can affect text interpretation, but this package does not enforce authentication, authorization, crypto, or HTML sanitization
 - trust boundary: input bytes and requested encoding labels are caller-controlled
-- supported protocol or algorithm matrix: UTF-8, UTF-16LE/BE/auto, UTF-32LE/BE/auto, CESU-8, base64, hex, binary/latin1, ASCII, Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK/GB18030/Big5/EUC-JP/EUC-KR when ICU supports the label
+- supported protocol or algorithm matrix: UTF-8, UTF-16LE/BE/auto, UTF-32LE/BE/auto, CESU-8, base64, hex, binary/latin1, ASCII, Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK/GB18030/Big5/EUC-JP/EUC-KR from upstream generated table data
 - unsupported behavior and fail-closed policy: unsupported labels throw `polycpp::TypeError`; Node stream parity is absent rather than partially emulated
 - key, secret, credential, or user-controlled input handling: no secrets; invalid labels and invalid byte sequences are tested, and conversion APIs do not execute code
 - misuse cases that must be tested: unknown encodings, prototype-looking labels such as `__proto__`, invalid/incomplete UTF-16/UTF-32 byte lengths, untranslatable encode characters, BOM stripping disabled, and common alias normalization
@@ -163,17 +172,17 @@ Tests, fixtures, examples, and docs directories:
 
 - `encode`, `decode`, `encoding_exists`, `to_encoding`, `from_encoding`, and `canonicalize_encoding`.
 - `EncodeOptions::add_bom` and `DecodeOptions::strip_bom` / `default_encoding`.
-- Explicit aliases for iconv-lite labels not accepted directly by ICU.
+- Explicit aliases from iconv-lite generated registry data.
 - Internal encodings: UTF-8, UTF-16LE/BE/auto, UTF-32LE/BE/auto, CESU-8, latin1/binary, ASCII, base64, and hex.
-- ICU-backed legacy encodings with substitution behavior.
+- Generated SBCS/DBCS table codecs with upstream substitution behavior.
 
 ## Features to defer
 
 - Node `encodeStream`, `decodeStream`, and `enableStreamingAPI` parity.
 - Public `getCodec`, dynamic codec registry, and mutable default character globals.
-- Vendoring upstream generated SBCS/DBCS tables.
+- Vendoring upstream JavaScript source files.
 - Browser bundling behavior.
-- Exact parity for every label in `types/encodings.d.ts` when ICU does not support an alias.
+- Node stream parity and dynamic codec registry internals.
 
 ## v0 scope
 
@@ -181,6 +190,6 @@ Tests, fixtures, examples, and docs directories:
 - versioning note: port version is independent from upstream versioning
 - supported APIs: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `canonicalize_encoding`, `encoding_exists`, `encode`, `decode`, `to_encoding`, `from_encoding`, and alias helpers
 - unsupported APIs: Node streams, dynamic codec registry, `getEncoder`, `getDecoder`, `getCodec`, callback-style BOM hooks, browser webpack behavior, and mutable global default characters
-- dependency plan: use `polycpp::buffer::Buffer` instead of `safer-buffer`; use ICU/native conversion instead of upstream generated JavaScript tables
-- polycpp modules to use: `polycpp::buffer::Buffer`, `polycpp::TypeError`, polycpp ICU Unicode backend
-- missing polycpp primitives: bidirectional public legacy encoding conversion API in `polycpp::unicode`; v0 works around this with direct ICU calls inside the companion
+- dependency plan: use `polycpp::buffer::Buffer` instead of `safer-buffer`; use generated C++ data from upstream JavaScript tables
+- polycpp modules to use: `polycpp::buffer::Buffer` and `polycpp::TypeError`
+- missing polycpp primitives: none blocking; this package intentionally owns iconv-lite table parity inside the companion

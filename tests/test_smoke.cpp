@@ -65,6 +65,35 @@ TEST(iconv_lite, matches_selected_legacy_multibyte_encodings) {
     EXPECT_EQ(iconv::decode(euckr, "korean"), "안녕");
 }
 
+TEST(iconv_lite, uses_upstream_generated_tables_for_representative_codecs) {
+    struct Fixture {
+        const char* text;
+        const char* encoding;
+        const char* hex;
+        const char* decoded;
+    };
+    const Fixture fixtures[] = {
+        {"Résumé €", "win1252", "52e973756de92080", "Résumé €"},
+        {"Γειά", "iso88597", "c3e5e9dc", "Γειά"},
+        {"Привет", "koi8r", "f0d2c9d7c5d4", "Привет"},
+        {"Привет", "cp866", "8fe0a8a2a5e2", "Привет"},
+        {"ภาษาไทย", "win874", "c0d2c9d2e4b7c2", "ภาษาไทย"},
+        {"中文", "big5", "a4a4a4e5", "中文"},
+        {"こんにちは", "eucjp", "a4b3a4f3a4cba4c1a4cf", "こんにちは"},
+        {"안녕", "cp949", "bec8b3e7", "안녕"},
+        {"€", "gb18030", "a2e3", "€"},
+        {"💩", "latin1", "3f3f", "??"},
+        {"💩", "gbk", "3f", "?"},
+        {"💩", "gb18030", "9439da33", "💩"},
+    };
+
+    for (const auto& fixture : fixtures) {
+        const auto encoded = iconv::encode(fixture.text, fixture.encoding);
+        EXPECT_EQ(encoded.toString("hex"), fixture.hex) << fixture.encoding;
+        EXPECT_EQ(iconv::decode(encoded, fixture.encoding), fixture.decoded) << fixture.encoding;
+    }
+}
+
 TEST(iconv_lite, handles_utf7_and_cesu8_codecs) {
     const auto utf7 = iconv::encode("Hi + 你好 &", "utf7");
     EXPECT_EQ(utf7.toString("hex"), "4869202b2d202b5432425a66512d202b4143592d");

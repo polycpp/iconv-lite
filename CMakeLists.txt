@@ -8,8 +8,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include(FetchContent)
 
 set(POLYCPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(POLYCPP_UNICODE "icu" CACHE STRING "Unicode support required by iconv-lite" FORCE)
 set(POLYCPP_SOURCE_DIR "" CACHE PATH "Path to a local polycpp checkout")
+set(POLYCPP_ICONV_LITE_POLYCPP_UNICODE "builtin" CACHE STRING "Default polycpp Unicode backend for this companion when POLYCPP_UNICODE is not already set")
+set_property(CACHE POLYCPP_ICONV_LITE_POLYCPP_UNICODE PROPERTY STRINGS auto icu builtin)
+
+if(NOT DEFINED POLYCPP_UNICODE)
+    set(POLYCPP_UNICODE "${POLYCPP_ICONV_LITE_POLYCPP_UNICODE}" CACHE STRING "Unicode support for embedded polycpp")
+    set_property(CACHE POLYCPP_UNICODE PROPERTY STRINGS auto icu builtin)
+endif()
 
 
 if(POLYCPP_SOURCE_DIR AND EXISTS "${POLYCPP_SOURCE_DIR}/CMakeLists.txt")
@@ -24,23 +30,13 @@ else()
 endif()
 FetchContent_MakeAvailable(polycpp)
 
-find_package(ICU REQUIRED COMPONENTS uc i18n data)
-if(TARGET ICU::uc)
-    set(POLYCPP_ICONV_LITE_ICU_LIB ICU::uc)
-elseif(ICU_UC_LIBRARIES)
-    set(POLYCPP_ICONV_LITE_ICU_LIB ${ICU_UC_LIBRARIES})
-else()
-    message(FATAL_ERROR "polycpp_iconv_lite requires ICU uc libraries.")
-endif()
-
 add_library(polycpp_iconv_lite
     src/iconv_lite.cpp
 )
-target_link_libraries(polycpp_iconv_lite PUBLIC polycpp ${POLYCPP_ICONV_LITE_ICU_LIB})
+target_link_libraries(polycpp_iconv_lite PUBLIC polycpp)
 target_include_directories(polycpp_iconv_lite PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-    ${ICU_INCLUDE_DIRS}
 )
 target_compile_features(polycpp_iconv_lite PUBLIC cxx_std_20)
 

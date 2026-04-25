@@ -14,7 +14,7 @@
 ## Integration tests
 
 - Public API uses `polycpp::buffer::Buffer` without local byte containers.
-- CMake config requires ICU and links with polycpp.
+- CMake config links only the companion target and polycpp; embedded polycpp defaults to `POLYCPP_UNICODE=builtin`, so no ICU/iconv link is required for standalone validation.
 - Example target builds with `POLYCPP_ICONV_LITE_BUILD_EXAMPLES=ON`.
 - Documentation build succeeds with Doxygen and Sphinx.
 
@@ -57,7 +57,7 @@ Commands run on 2026-04-25:
 
 Results:
 
-- Build passed with system ICU 70.1.
-- 9 GoogleTest cases passed.
+- Build passed without a direct iconv-lite ICU/iconv dependency.
+- 10 GoogleTest cases passed.
 - Example output matched README: `cff0e8e2e5f2` followed by `Привет`.
 - Documentation build, post-implementation validation, and public readiness checks passed.

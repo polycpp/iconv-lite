@@ -77,13 +77,13 @@ struct EncodingInfo {
     /** @brief iconv-lite-style canonical label. */
     std::string canonical;
 
-    /** @brief ICU converter name or local internal codec name. */
+    /** @brief Resolved upstream table name or local internal codec name. */
     std::string converter;
 
     /** @brief True when BOM strip/prepend behavior applies. */
     bool bom_aware = false;
 
-    /** @brief True when handled by a local internal codec instead of ICU. */
+    /** @brief True when handled by a local internal codec instead of generated SBCS/DBCS tables. */
     bool internal = false;
 };
 

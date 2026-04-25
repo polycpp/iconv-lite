@@ -11,7 +11,7 @@ trailing ``:YYYY`` suffix, and strip non-alphanumeric characters.
 
 Common aliases such as ``win1251``, ``1251``, ``cp1251``, ``sjis``, ``gbk``,
 ``gb18030``, ``big5hkscs``, ``latin1``, ``binary``, ``utf16le``, and
-``utf32be`` are handled explicitly before ICU probing.
+``utf32be`` are handled through explicit aliases and generated upstream table entries.
 
 Use ``inspect_encoding`` when debugging resolution:
 

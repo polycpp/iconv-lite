@@ -6,7 +6,7 @@
 - Version basis: 0.7.2
 - License: MIT
 - License evidence: upstream `package.json` and `LICENSE`
-- Use in this repo: clean-room C++ port based on public behavior and tests; no upstream source is vendored
+- Use in this repo: clean-room C++ port based on public behavior, tests, and generated encoding table data from the published npm artifact; no upstream source files are vendored
 
 ## npm dependency: safer-buffer
 
@@ -15,9 +15,3 @@
 - License: MIT
 - License evidence: npm package metadata
 - Use in this repo: not linked or vendored; replaced by base `polycpp::buffer::Buffer`
-
-## Native dependency: ICU
-
-- Source: https://icu.unicode.org/
-- License: Unicode/ICU License
-- Use in this repo: linked as a system/CMake dependency for character set conversion; ICU source is not vendored in this repository

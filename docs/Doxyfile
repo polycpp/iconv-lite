@@ -32,7 +32,6 @@ GENERATE_XML           = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = YES
 PREDEFINED             = POLYCPP_IMPL= \
-                         POLYCPP_HAVE_ICU=1 \
                          DOXYGEN=1
 
 # Don't chase polycpp-core headers into the companion's XML - we only want

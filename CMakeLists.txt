@@ -58,8 +58,11 @@ if(POLYCPP_ICONV_LITE_BUILD_TESTS)
 
     add_executable(test_smoke tests/test_smoke.cpp)
     target_link_libraries(test_smoke PRIVATE polycpp_iconv_lite GTest::gtest_main)
+    add_executable(test_upstream_compat tests/test_upstream_compat.cpp)
+    target_link_libraries(test_upstream_compat PRIVATE polycpp_iconv_lite GTest::gtest_main)
     include(GoogleTest)
     gtest_discover_tests(test_smoke)
+    gtest_discover_tests(test_upstream_compat)
 endif()
 
 option(POLYCPP_ICONV_LITE_BUILD_EXAMPLES "Build examples" OFF)

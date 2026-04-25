@@ -32,9 +32,16 @@ constexpr int32_t NODE_START = -1000;
 constexpr int32_t DEF_CHAR = -1;
 
 using ByteNode = std::array<int32_t, 256>;
+using EncodeNode = std::array<int64_t, 256>;
 
 ByteNode make_unassigned_node() {
     ByteNode node{};
+    node.fill(UNASSIGNED);
+    return node;
+}
+
+EncodeNode make_unassigned_encode_node() {
+    EncodeNode node{};
     node.fill(UNASSIGNED);
     return node;
 }
@@ -394,8 +401,8 @@ private:
 };
 
 struct SeqNode {
-    std::optional<int32_t> def;
-    std::unordered_map<uint32_t, int32_t> values;
+    std::optional<int64_t> def;
+    std::unordered_map<uint32_t, int64_t> values;
     std::unordered_map<uint32_t, uint32_t> children;
 };
 
@@ -419,7 +426,7 @@ public:
         fill_encode_table(0, 0);
         for (size_t i = 0; i < spec.add_count; ++i) {
             const auto& add = generated::ADD_MAPPINGS[spec.add_offset + i];
-            set_encode_char(add.code, static_cast<int32_t>(add.value));
+            set_encode_char(add.code, static_cast<int64_t>(add.value));
         }
     }
 
@@ -442,7 +449,7 @@ public:
         std::optional<uint32_t> seq_idx = state.seq_idx;
         int32_t next_char = -1;
         size_t i = 0;
-        const int32_t def_char_sb = default_dbcs_code(default_char);
+        const int64_t def_char_sb = default_dbcs_code(default_char);
 
         while (true) {
             int32_t u_code = 0;
@@ -474,7 +481,7 @@ public:
                 lead_surrogate = -1;
             }
 
-            int32_t dbcs_code = UNASSIGNED;
+            int64_t dbcs_code = UNASSIGNED;
             if (seq_idx.has_value() && u_code != UNASSIGNED) {
                 const auto& node = encode_table_seq_[*seq_idx];
                 auto child = node.children.find(static_cast<uint32_t>(u_code));
@@ -582,11 +589,11 @@ private:
     const generated::DbcsSpec& spec_;
     std::vector<ByteNode> decode_tables_;
     std::vector<std::vector<uint32_t>> decode_table_seq_;
-    std::unordered_map<uint32_t, ByteNode> encode_table_;
+    std::unordered_map<uint32_t, EncodeNode> encode_table_;
     std::vector<SeqNode> encode_table_seq_;
     bool has_gb18030() const noexcept { return spec_.gb_count > 0; }
 
-    int32_t default_dbcs_code(std::string_view default_char) const {
+    int64_t default_dbcs_code(std::string_view default_char) const {
         const uint16_t unit = first_utf16_unit_or(default_char, static_cast<uint16_t>('?'));
         auto value = lookup_encode_char(unit).value_or(UNASSIGNED);
         if (value != UNASSIGNED && value > SEQ_START) return value;
@@ -681,32 +688,32 @@ private:
         return false;
     }
 
-    ByteNode& get_encode_bucket(uint32_t u_code) {
+    EncodeNode& get_encode_bucket(uint32_t u_code) {
         const uint32_t high = u_code >> 8;
         auto it = encode_table_.find(high);
         if (it == encode_table_.end()) {
-            it = encode_table_.emplace(high, make_unassigned_node()).first;
+            it = encode_table_.emplace(high, make_unassigned_encode_node()).first;
         }
         return it->second;
     }
 
-    std::optional<int32_t> lookup_encode_char(uint32_t u_code) const {
+    std::optional<int64_t> lookup_encode_char(uint32_t u_code) const {
         auto it = encode_table_.find(u_code >> 8);
         if (it == encode_table_.end()) return std::nullopt;
         return it->second[u_code & 0xFF];
     }
 
-    void set_encode_char(uint32_t u_code, int32_t dbcs_code) {
+    void set_encode_char(uint32_t u_code, int64_t dbcs_code) {
         auto& bucket = get_encode_bucket(u_code);
         auto& slot = bucket[u_code & 0xFF];
         if (slot <= SEQ_START) {
-            encode_table_seq_[SEQ_START - slot].def = dbcs_code;
+            encode_table_seq_[static_cast<size_t>(SEQ_START - slot)].def = dbcs_code;
         } else if (slot == UNASSIGNED) {
             slot = dbcs_code;
         }
     }
 
-    void set_encode_sequence(const std::vector<uint32_t>& seq, int32_t dbcs_code) {
+    void set_encode_sequence(const std::vector<uint32_t>& seq, int64_t dbcs_code) {
         if (seq.empty()) return;
         auto& bucket = get_encode_bucket(seq[0]);
         auto& slot = bucket[seq[0] & 0xFF];
@@ -744,7 +751,7 @@ private:
             if (skip_encode(mb_code)) continue;
 
             if (u_code >= 0) {
-                set_encode_char(static_cast<uint32_t>(u_code), static_cast<int32_t>(mb_code));
+                set_encode_char(static_cast<uint32_t>(u_code), static_cast<int64_t>(mb_code));
                 has_values = true;
             } else if (u_code <= NODE_START) {
                 const size_t sub_idx = static_cast<size_t>(NODE_START - u_code);
@@ -990,38 +997,42 @@ std::string normalize_default_encoding(std::string_view value, std::string_view 
     return std::string(fallback);
 }
 
-std::string choose_utf16_decode(const Buffer& input, const DecodeOptions& options) {
-    if (input.length() >= 2) {
-        if (input[0] == 0xFF && input[1] == 0xFE) return "utf16le";
-        if (input[0] == 0xFE && input[1] == 0xFF) return "utf16be";
+std::string choose_utf16_decode_bytes(const uint8_t* data, size_t length, const DecodeOptions& options) {
+    if (length >= 2) {
+        if (data[0] == 0xFF && data[1] == 0xFE) return "utf16le";
+        if (data[0] == 0xFE && data[1] == 0xFF) return "utf16be";
     }
     size_t be = 0;
     size_t le = 0;
-    const auto limit = std::min(input.length(), static_cast<size_t>(200));
+    const auto limit = std::min(length, static_cast<size_t>(200));
     for (size_t i = 0; i + 1 < limit; i += 2) {
-        if (input[i] == 0 && input[i + 1] != 0) ++be;
-        if (input[i] != 0 && input[i + 1] == 0) ++le;
+        if (data[i] == 0 && data[i + 1] != 0) ++be;
+        if (data[i] != 0 && data[i + 1] == 0) ++le;
     }
     if (be > le) return "utf16be";
     if (le > be) return "utf16le";
     return normalize_default_encoding(options.default_encoding, "utf16le", "utf16");
 }
 
-std::string choose_utf32_decode(const Buffer& input, const DecodeOptions& options) {
-    if (input.length() >= 4) {
-        if (input[0] == 0xFF && input[1] == 0xFE && input[2] == 0 && input[3] == 0) return "utf32le";
-        if (input[0] == 0 && input[1] == 0 && input[2] == 0xFE && input[3] == 0xFF) return "utf32be";
+std::string choose_utf16_decode(const Buffer& input, const DecodeOptions& options) {
+    return choose_utf16_decode_bytes(input.data(), input.length(), options);
+}
+
+std::string choose_utf32_decode_bytes(const uint8_t* data, size_t length, const DecodeOptions& options) {
+    if (length >= 4) {
+        if (data[0] == 0xFF && data[1] == 0xFE && data[2] == 0 && data[3] == 0) return "utf32le";
+        if (data[0] == 0 && data[1] == 0 && data[2] == 0xFE && data[3] == 0xFF) return "utf32be";
     }
     int64_t invalid_le = 0;
     int64_t invalid_be = 0;
     int64_t bmp_le = 0;
     int64_t bmp_be = 0;
-    const auto limit = std::min(input.length(), static_cast<size_t>(400));
+    const auto limit = std::min(length, static_cast<size_t>(400));
     for (size_t i = 0; i + 3 < limit; i += 4) {
-        const uint8_t b0 = input[i];
-        const uint8_t b1 = input[i + 1];
-        const uint8_t b2 = input[i + 2];
-        const uint8_t b3 = input[i + 3];
+        const uint8_t b0 = data[i];
+        const uint8_t b1 = data[i + 1];
+        const uint8_t b2 = data[i + 2];
+        const uint8_t b3 = data[i + 3];
         if (b0 != 0 || b1 > 0x10) ++invalid_be;
         if (b3 != 0 || b2 > 0x10) ++invalid_le;
         if (b0 == 0 && b1 == 0 && (b2 != 0 || b3 != 0)) ++bmp_be;
@@ -1030,6 +1041,10 @@ std::string choose_utf32_decode(const Buffer& input, const DecodeOptions& option
     if (bmp_be - invalid_be > bmp_le - invalid_le) return "utf32be";
     if (bmp_le - invalid_le > bmp_be - invalid_be) return "utf32le";
     return normalize_default_encoding(options.default_encoding, "utf32le", "utf32");
+}
+
+std::string choose_utf32_decode(const Buffer& input, const DecodeOptions& options) {
+    return choose_utf32_decode_bytes(input.data(), input.length(), options);
 }
 
 void prepend_bytes(std::vector<uint8_t>& bytes, std::initializer_list<uint8_t> prefix) {
@@ -1601,7 +1616,7 @@ private:
         if (!auto_little_endian_.has_value()) {
             auto_initial_.insert(auto_initial_.end(), input.data(), input.data() + input.length());
             if (auto_initial_.size() < 16) return "";
-            const auto selected = choose_utf16_decode(Buffer::from(auto_initial_), options_);
+            const auto selected = choose_utf16_decode_bytes(auto_initial_.data(), auto_initial_.size(), options_);
             auto_little_endian_ = selected != "utf16be";
             const auto initial = Buffer::from(auto_initial_);
             auto_initial_.clear();
@@ -1612,7 +1627,7 @@ private:
 
     std::string end_utf16_auto() {
         if (!auto_little_endian_.has_value()) {
-            const auto selected = choose_utf16_decode(Buffer::from(auto_initial_), options_);
+            const auto selected = choose_utf16_decode_bytes(auto_initial_.data(), auto_initial_.size(), options_);
             auto_little_endian_ = selected != "utf16be";
             const auto initial = Buffer::from(auto_initial_);
             auto_initial_.clear();
@@ -1654,7 +1669,7 @@ private:
         if (!auto_little_endian_.has_value()) {
             auto_initial_.insert(auto_initial_.end(), input.data(), input.data() + input.length());
             if (auto_initial_.size() < 32) return "";
-            const auto selected = choose_utf32_decode(Buffer::from(auto_initial_), options_);
+            const auto selected = choose_utf32_decode_bytes(auto_initial_.data(), auto_initial_.size(), options_);
             auto_little_endian_ = selected != "utf32be";
             const auto initial = Buffer::from(auto_initial_);
             auto_initial_.clear();
@@ -1665,7 +1680,7 @@ private:
 
     std::string end_utf32_auto() {
         if (!auto_little_endian_.has_value()) {
-            const auto selected = choose_utf32_decode(Buffer::from(auto_initial_), options_);
+            const auto selected = choose_utf32_decode_bytes(auto_initial_.data(), auto_initial_.size(), options_);
             auto_little_endian_ = selected != "utf32be";
             const auto initial = Buffer::from(auto_initial_);
             auto_initial_.clear();
@@ -1946,7 +1961,8 @@ Buffer encode(std::string_view input, std::string_view encoding, const EncodeOpt
 
 std::string decode(const Buffer& input, std::string_view encoding, const DecodeOptions& options) {
     auto decoder = get_decoder(encoding, options);
-    return decoder.write(input) + decoder.end();
+    auto head = decoder.write(input);
+    return head + decoder.end();
 }
 
 bool supports_streams() noexcept {

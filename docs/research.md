@@ -107,7 +107,7 @@ Tests, fixtures, examples, and docs directories:
 
 - Upstream supports hundreds of labels through generated JS tables; the C++ port generates those tables into a committed C++ header and resolves aliases through the upstream registry.
 - `safer-buffer` and Node `Buffer` are upstream implementation dependencies; the C++ port must reuse `polycpp::buffer::Buffer`.
-- Upstream stream APIs depend on Node streams; the first C++ version should expose deterministic batch encode/decode and defer Node stream parity.
+- Upstream stream APIs depend on Node streams; the C++ port adapts them to `polycpp::stream::Transform` while keeping batch encode/decode deterministic.
 - Encoding aliases such as `win1251`, `1251`, `utf16le`, `utf32le`, `binary`, and `ucs2` need explicit normalization because generated table lookup must follow iconv-lite canonicalized aliases exactly.
 - BOM behavior differs by encoding family and must be tested explicitly.
 - Untranslatable characters should substitute `?` on encode where possible, matching upstream behavior.
@@ -125,20 +125,20 @@ Tests, fixtures, examples, and docs directories:
 
 ## Polycpp ecosystem reuse analysis
 
-- polycpp core paths inspected: `include/polycpp/buffer/buffer.hpp`, `include/polycpp/buffer/detail/buffer.hpp`, and `include/polycpp/string_decoder/string_decoder.hpp`
-- polycpp core types/functions selected: `polycpp::buffer::Buffer`, `Buffer::from`, `Buffer::toString`, `Buffer::concat`, `Buffer::data`, `Buffer::length`, and `polycpp::TypeError`
+- polycpp core paths inspected: `include/polycpp/buffer/buffer.hpp`, `include/polycpp/buffer/detail/buffer.hpp`, `include/polycpp/string_decoder/string_decoder.hpp`, and `include/polycpp/stream/stream.hpp`
+- polycpp core types/functions selected: `polycpp::buffer::Buffer`, `Buffer::from`, `Buffer::toString`, `Buffer::concat`, `Buffer::data`, `Buffer::length`, `polycpp::string_decoder::StringDecoder`, `polycpp::stream::Transform`, and `polycpp::TypeError`
 - polycpp core types/functions rejected: `polycpp::unicode::EncodingConverter`; this package needs iconv-lite-specific table parity rather than a platform converter abstraction
 - companion libs inspected for reusable APIs: current companion libs under local polycpp companion checkout; no existing encoding-conversion companion exists
 - companion libs selected for reuse: none
 - companion libs rejected or deferred: no separate `safer-buffer` companion; its purpose is already covered by `polycpp::buffer::Buffer`
-- new local abstractions introduced: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `encode`, `decode`, `encoding_exists`, and `canonicalize_encoding`; these model iconv-lite policy, not a new binary buffer type
+- new local abstractions introduced: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `encode`, `decode`, `encoding_exists`, and `canonicalize_encoding`; these model iconv-lite policy, not a new binary buffer type
 - reuse risks or integration gaps: this repo now owns generated table data; regenerate it when the upstream version basis changes and keep provenance documented
 
 ## External SDK and native driver strategy
 
 - upstream external services/protocols: none
 - native SDKs/client libraries to use: none for encoding conversion; generated table data comes from the upstream npm artifact
-- SDKs/protocols explicitly not reimplemented: Node stream engine is not reimplemented in v0
+- SDKs/protocols explicitly not reimplemented: Node's JavaScript stream engine is not reimplemented; stream APIs are adapted to polycpp streams
 - adapter/linking strategy: link `polycpp` only; do not add a direct ICU/iconv dependency for this companion; default embedded polycpp to `POLYCPP_UNICODE=builtin` unless the consumer explicitly selects another backend
 - test environment needs: CMake and GoogleTest for normal validation; Node/npm only when regenerating upstream-derived tables or expected fixtures
 - table regeneration command: `node tools/generate_iconv_tables.js .tmp/npm-package include/polycpp/iconv_lite/detail/generated_tables.hpp`
@@ -156,7 +156,9 @@ Tests, fixtures, examples, and docs directories:
 - security-sensitive behavior: medium; decoding untrusted bytes can affect text interpretation, but this package does not enforce authentication, authorization, crypto, or HTML sanitization
 - trust boundary: input bytes and requested encoding labels are caller-controlled
 - supported protocol or algorithm matrix: UTF-8, UTF-16LE/BE/auto, UTF-32LE/BE/auto, CESU-8, base64, hex, binary/latin1, ASCII, Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK/GB18030/Big5/EUC-JP/EUC-KR from upstream generated table data
-- unsupported behavior and fail-closed policy: unsupported labels throw `polycpp::TypeError`; Node stream parity is absent rather than partially emulated
+- stateful parser/session-state policy, if protocol client/server: not a protocol client/server; stateful converter policy is limited to chunk-boundary state for encoders/decoders and is covered by low-level and stream tests
+- binary payload type-mapping policy, if protocol client: not a protocol client; binary conversion input/output uses `polycpp::buffer::Buffer` and decoded text uses UTF-8 `std::string`
+- unsupported behavior and fail-closed policy: unsupported labels throw `polycpp::TypeError`; browser bundling and JavaScript registry mutation internals are absent rather than partially emulated
 - key, secret, credential, or user-controlled input handling: no secrets; invalid labels and invalid byte sequences are tested, and conversion APIs do not execute code
 - misuse cases that must be tested: unknown encodings, prototype-looking labels such as `__proto__`, invalid/incomplete UTF-16/UTF-32 byte lengths, untranslatable encode characters, BOM stripping disabled, and common alias normalization
 
@@ -171,6 +173,7 @@ Tests, fixtures, examples, and docs directories:
 ## Key features to port first
 
 - `encode`, `decode`, `encoding_exists`, `to_encoding`, `from_encoding`, and `canonicalize_encoding`.
+- `get_codec`, `get_encoder`, `get_decoder`, `encode_stream`, `decode_stream`, and mutable replacement defaults using typed C++ APIs.
 - `EncodeOptions::add_bom` and `DecodeOptions::strip_bom` / `default_encoding`.
 - Explicit aliases from iconv-lite generated registry data.
 - Internal encodings: UTF-8, UTF-16LE/BE/auto, UTF-32LE/BE/auto, CESU-8, latin1/binary, ASCII, base64, and hex.
@@ -178,18 +181,17 @@ Tests, fixtures, examples, and docs directories:
 
 ## Features to defer
 
-- Node `encodeStream`, `decodeStream`, and `enableStreamingAPI` parity.
-- Public `getCodec`, dynamic codec registry, and mutable default character globals.
 - Vendoring upstream JavaScript source files.
 - Browser bundling behavior.
-- Node stream parity and dynamic codec registry internals.
+- Callback form of `stripBOM`.
+- Public mutation of JavaScript registry/cache internals such as `iconv.encodings` and `_codecDataCache`.
 
 ## v0 scope
 
 - port version: 0.1.0
 - versioning note: port version is independent from upstream versioning
-- supported APIs: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `canonicalize_encoding`, `encoding_exists`, `encode`, `decode`, `to_encoding`, `from_encoding`, and alias helpers
-- unsupported APIs: Node streams, dynamic codec registry, `getEncoder`, `getDecoder`, `getCodec`, callback-style BOM hooks, browser webpack behavior, and mutable global default characters
+- supported APIs: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `canonicalize_encoding`, `encoding_exists`, `get_codec`, `get_encoder`, `get_decoder`, `encode_stream`, `decode_stream`, `enable_streaming_api`, `encode`, `decode`, `to_encoding`, `from_encoding`, replacement-default getters/setters, and JavaScript-name aliases for the upstream API names
+- unsupported APIs: callback-style BOM hooks, browser webpack behavior, and public mutation of JavaScript codec registry/cache internals
 - dependency plan: use `polycpp::buffer::Buffer` instead of `safer-buffer`; use generated C++ data from upstream JavaScript tables
-- polycpp modules to use: `polycpp::buffer::Buffer` and `polycpp::TypeError`
+- polycpp modules to use: `polycpp::buffer::Buffer`, `polycpp::stream::Transform`, `polycpp::string_decoder::StringDecoder`, and `polycpp::TypeError`
 - missing polycpp primitives: none blocking; this package intentionally owns iconv-lite table parity inside the companion

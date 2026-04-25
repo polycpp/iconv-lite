@@ -66,8 +66,8 @@
 ### Node.js API usage
 
 - `Buffer.from`, `Buffer.alloc`, `Buffer.concat`, and `Buffer.isBuffer` map to `polycpp::buffer::Buffer` APIs.
-- `string_decoder.StringDecoder` behavior is not exposed directly in v0; batch decode uses local table codecs and explicit BOM handling.
-- `stream.Transform` maps to deferred C++ stream integration; no local stream type is introduced.
+- `string_decoder.StringDecoder` maps to `polycpp::string_decoder::StringDecoder` for UTF-8 streaming decode, with local stateful adapters for UTF-16/UTF-32/DBCS/UTF-7.
+- `stream.Transform` maps to `EncodeStream` and `DecodeStream`, implemented as `polycpp::stream::Transform` wrappers.
 
 ### JavaScript API usage
 
@@ -86,10 +86,10 @@
 
 - Reuse `polycpp::buffer::Buffer` as the only public byte container.
 - Generate and use upstream iconv-lite SBCS/DBCS tables instead of relying on a platform encoding converter.
-- Keep the public C++ API batch-oriented and deterministic.
+- Keep the public C++ API deterministic while exposing both batch and stateful streaming adapters.
 - Implement explicit iconv-lite alias normalization before generated table lookup.
 - Preserve core BOM semantics for UTF-8, UTF-16, and UTF-32.
-- Defer Node stream parity and dynamic codec registry APIs.
+- Adapt Node stream and dynamic codec registry APIs to typed C++ surfaces: `Codec`, `Encoder`, `Decoder`, `EncodeStream`, and `DecodeStream`.
 
 Each porting decision is consistent with the ecosystem reuse decisions recorded in `docs/research.md`.
 

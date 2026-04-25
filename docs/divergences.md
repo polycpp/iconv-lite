@@ -3,8 +3,9 @@
 ## Intentional C++ API Shape
 
 - Upstream accepts JavaScript strings and Node `Buffer`; this port accepts UTF-8 `std::string_view` and `polycpp::buffer::Buffer`.
-- Upstream has mutable module globals and a dynamic codec registry; this port exposes deterministic functions and fixed options.
+- Upstream has mutable module properties and a lazy JavaScript codec registry; this port exposes typed `Codec`, `Encoder`, and `Decoder` objects plus replacement-character setters.
 - Upstream implements conversion with generated JavaScript tables; this port generates equivalent C++ table data from the published npm artifact.
+- Upstream streams emit JavaScript strings from `decodeStream`; `DecodeStream` emits UTF-8 `Buffer` chunks because polycpp streams are byte-oriented, and exposes decoded text through `collect()`.
 
 ## Supported Behavior
 
@@ -14,21 +15,22 @@
 - UTF-7 and UTF-7-IMAP are implemented locally to match iconv-lite byte behavior for direct characters and modified base64 shifts.
 - BOM stripping and prepending for BOM-aware UTF encodings.
 - Encode substitution for unrepresentable characters follows upstream SBCS/DBCS default-character behavior.
+- Stateful `get_codec`, `get_encoder`, and `get_decoder` APIs preserve chunk-boundary state for base64, DBCS, UTF-7, UTF-16, and UTF-32.
+- `encode_stream` and `decode_stream` use `polycpp::stream::Transform`, with JavaScript-name aliases available for compatibility.
+- Mutable replacement defaults are available through setter/getter functions.
 
 ## Deferred Behavior
 
-- Node `encodeStream`, `decodeStream`, and `enableStreamingAPI` parity.
-- Public `getCodec`, `getEncoder`, and `getDecoder` APIs.
-- Runtime mutation of `defaultCharUnicode`, `defaultCharSingleByte`, or codec cache internals.
 - Callback form of `stripBOM`.
 - Browser bundling behavior.
-- Public dynamic codec registry internals and streaming chunk-boundary state APIs.
+- Public mutation of codec cache internals such as `_codecDataCache`.
+- Exact JavaScript object registry mutation through `iconv.encodings`; C++ codec definitions are compiled from generated tables.
 
 ## Unsupported Runtime-Specific Features
 
 - JavaScript prototype pollution edge cases are not represented; C++ label lookup has no prototype chain.
 - JavaScript object truthiness/coercion of arbitrary input values is not represented; C++ APIs are typed.
-- Node stream backpressure and chunk-boundary behavior are not represented in v0.
+- Node object-mode or arbitrary JavaScript chunk typing is not represented; polycpp streams carry buffers/text, and `EncodeStream` interprets written chunks as UTF-8 text.
 
 ## Compatibility Notes
 

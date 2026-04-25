@@ -6,6 +6,8 @@
 #include <array>
 #include <cctype>
 #include <cstdint>
+#include <deque>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -16,6 +18,9 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include <polycpp/event_loop.hpp>
+#include <polycpp/string_decoder.hpp>
 
 namespace polycpp::iconv_lite {
 namespace {
@@ -80,6 +85,31 @@ void append_utf16(std::vector<uint16_t>& out, uint32_t cp) {
     }
 }
 
+std::mutex& defaults_mutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::string& default_unicode_storage() {
+    static std::string value = "\xEF\xBF\xBD";
+    return value;
+}
+
+std::string& default_single_byte_storage() {
+    static std::string value = "?";
+    return value;
+}
+
+std::string current_default_unicode() {
+    std::lock_guard<std::mutex> lock(defaults_mutex());
+    return default_unicode_storage();
+}
+
+std::string current_default_single_byte() {
+    std::lock_guard<std::mutex> lock(defaults_mutex());
+    return default_single_byte_storage();
+}
+
 std::vector<uint16_t> utf8_to_utf16(std::string_view input) {
     std::vector<uint16_t> out;
     out.reserve(input.size());
@@ -129,6 +159,24 @@ std::vector<uint16_t> utf8_to_utf16(std::string_view input) {
         i += len;
     }
     return out;
+}
+
+uint16_t first_utf16_unit_or(std::string_view input, uint16_t fallback) {
+    const auto units = utf8_to_utf16(input);
+    return units.empty() ? fallback : units.front();
+}
+
+void append_utf16_text(std::vector<uint16_t>& out, std::string_view input) {
+    const auto units = utf8_to_utf16(input);
+    out.insert(out.end(), units.begin(), units.end());
+}
+
+void append_default_unicode(std::vector<uint16_t>& out, std::string_view fallback) {
+    if (fallback.empty()) {
+        out.push_back(0xFFFD);
+        return;
+    }
+    append_utf16_text(out, fallback);
 }
 
 std::string utf16_to_utf8(const std::vector<uint16_t>& input) {
@@ -311,13 +359,14 @@ public:
         }
     }
 
-    Buffer encode(std::string_view input) const {
+    Buffer encode(std::string_view input, std::string_view default_char) const {
+        const uint8_t default_byte = default_encode_byte(default_char);
         auto units = utf8_to_utf16(input);
         std::vector<uint8_t> bytes;
         bytes.reserve(units.size());
         for (auto unit : units) {
             auto it = encode_.find(unit);
-            bytes.push_back(it == encode_.end() ? static_cast<uint8_t>('?') : it->second);
+            bytes.push_back(it == encode_.end() ? default_byte : it->second);
         }
         return buffer_from_bytes(bytes);
     }
@@ -334,6 +383,14 @@ public:
 private:
     std::array<uint32_t, 256> decode_{};
     std::unordered_map<uint32_t, uint8_t> encode_;
+
+    uint8_t default_encode_byte(std::string_view default_char) const {
+        const uint16_t unit = first_utf16_unit_or(default_char, static_cast<uint16_t>('?'));
+        auto it = encode_.find(unit);
+        if (it != encode_.end()) return it->second;
+        it = encode_.find(static_cast<uint16_t>('?'));
+        return it == encode_.end() ? static_cast<uint8_t>('?') : it->second;
+    }
 };
 
 struct SeqNode {
@@ -344,6 +401,15 @@ struct SeqNode {
 
 class DbcsCodec {
 public:
+    struct EncodeState {
+        int32_t lead_surrogate = -1;
+        std::optional<uint32_t> seq_idx;
+    };
+
+    struct DecodeState {
+        std::vector<uint8_t> prev_bytes;
+    };
+
     explicit DbcsCodec(const generated::DbcsSpec& spec) : spec_(spec) {
         decode_tables_.push_back(make_unassigned_node());
         for (size_t i = 0; i < spec.chunks_count; ++i) {
@@ -355,18 +421,28 @@ public:
             const auto& add = generated::ADD_MAPPINGS[spec.add_offset + i];
             set_encode_char(add.code, static_cast<int32_t>(add.value));
         }
-        def_char_sb_ = lookup_encode_char('?').value_or(static_cast<int32_t>('?'));
     }
 
-    Buffer encode(std::string_view input) const {
+    Buffer encode(std::string_view input, std::string_view default_char) const {
+        EncodeState state;
+        auto head = encode_write(input, default_char, state);
+        auto tail = encode_end(default_char, state);
+        if (tail.length() == 0) return head;
+        return Buffer::concat({head, tail});
+    }
+
+    Buffer encode_write(std::string_view input,
+                        std::string_view default_char,
+                        EncodeState& state) const {
         auto units = utf8_to_utf16(input);
         std::vector<uint8_t> out;
         out.reserve(units.size() * (has_gb18030() ? 4 : 3));
 
-        int32_t lead_surrogate = -1;
-        std::optional<uint32_t> seq_idx;
+        int32_t lead_surrogate = state.lead_surrogate;
+        std::optional<uint32_t> seq_idx = state.seq_idx;
         int32_t next_char = -1;
         size_t i = 0;
+        const int32_t def_char_sb = default_dbcs_code(default_char);
 
         while (true) {
             int32_t u_code = 0;
@@ -436,29 +512,63 @@ public:
                 }
             }
 
-            if (dbcs_code == UNASSIGNED) dbcs_code = def_char_sb_;
+            if (dbcs_code == UNASSIGNED) dbcs_code = def_char_sb;
             write_encoded_code(out, static_cast<uint32_t>(dbcs_code));
         }
 
-        if (seq_idx.has_value()) {
-            const auto& node = encode_table_seq_[*seq_idx];
-            if (node.def.has_value()) write_encoded_code(out, static_cast<uint32_t>(*node.def));
-        }
-        if (lead_surrogate != -1) write_encoded_code(out, static_cast<uint32_t>(def_char_sb_));
-
+        state.lead_surrogate = lead_surrogate;
+        state.seq_idx = seq_idx;
         return buffer_from_bytes(out);
     }
 
-    std::string decode(const Buffer& input) const {
-        std::vector<uint8_t> bytes(input.data(), input.data() + input.length());
+    Buffer encode_end(std::string_view default_char, EncodeState& state) const {
+        if (state.lead_surrogate == -1 && !state.seq_idx.has_value()) return Buffer::alloc(0);
+
+        std::vector<uint8_t> out;
+        out.reserve(10);
+        if (state.seq_idx.has_value()) {
+            const auto& node = encode_table_seq_[*state.seq_idx];
+            if (node.def.has_value()) write_encoded_code(out, static_cast<uint32_t>(*node.def));
+            state.seq_idx.reset();
+        }
+        if (state.lead_surrogate != -1) {
+            write_encoded_code(out, static_cast<uint32_t>(default_dbcs_code(default_char)));
+            state.lead_surrogate = -1;
+        }
+        return buffer_from_bytes(out);
+    }
+
+    std::string decode(const Buffer& input, std::string_view default_char) const {
+        DecodeState state;
+        auto head = decode_write(input, default_char, state);
+        return head + decode_end(default_char, state);
+    }
+
+    std::string decode_write(const Buffer& input,
+                             std::string_view default_char,
+                             DecodeState& state) const {
+        std::vector<uint8_t> bytes;
+        bytes.reserve(state.prev_bytes.size() + input.length());
+        bytes.insert(bytes.end(), state.prev_bytes.begin(), state.prev_bytes.end());
+        bytes.insert(bytes.end(), input.data(), input.data() + input.length());
         std::vector<uint16_t> units;
-        while (true) {
-            auto result = decode_once(bytes);
-            units.insert(units.end(), result.units.begin(), result.units.end());
-            if (result.leftover.empty()) break;
-            units.push_back(0xFFFD);
-            bytes.assign(result.leftover.begin() + 1, result.leftover.end());
+        auto result = decode_once(bytes, default_char);
+        units.insert(units.end(), result.units.begin(), result.units.end());
+        state.prev_bytes = std::move(result.leftover);
+        return utf16_to_utf8(units);
+    }
+
+    std::string decode_end(std::string_view default_char, DecodeState& state) const {
+        std::vector<uint8_t> bytes = std::move(state.prev_bytes);
+        state.prev_bytes.clear();
+        std::vector<uint16_t> units;
+        while (!bytes.empty()) {
+            append_default_unicode(units, default_char);
+            bytes.erase(bytes.begin());
             if (bytes.empty()) break;
+            auto result = decode_once(bytes, default_char);
+            units.insert(units.end(), result.units.begin(), result.units.end());
+            bytes = std::move(result.leftover);
         }
         return utf16_to_utf8(units);
     }
@@ -474,9 +584,15 @@ private:
     std::vector<std::vector<uint32_t>> decode_table_seq_;
     std::unordered_map<uint32_t, ByteNode> encode_table_;
     std::vector<SeqNode> encode_table_seq_;
-    int32_t def_char_sb_ = '?';
-
     bool has_gb18030() const noexcept { return spec_.gb_count > 0; }
+
+    int32_t default_dbcs_code(std::string_view default_char) const {
+        const uint16_t unit = first_utf16_unit_or(default_char, static_cast<uint16_t>('?'));
+        auto value = lookup_encode_char(unit).value_or(UNASSIGNED);
+        if (value != UNASSIGNED && value > SEQ_START) return value;
+        value = lookup_encode_char('?').value_or(UNASSIGNED);
+        return value == UNASSIGNED ? static_cast<int32_t>('?') : value;
+    }
 
     ByteNode& get_decode_trie_node(uint32_t addr) {
         std::vector<uint8_t> bytes;
@@ -691,7 +807,7 @@ private:
         append_utf16(out, u_code);
     }
 
-    DecodeResult decode_once(const std::vector<uint8_t>& input) const {
+    DecodeResult decode_once(const std::vector<uint8_t>& input, std::string_view default_char) const {
         DecodeResult result;
         size_t node_idx = 0;
         size_t seq_start = 0;
@@ -702,22 +818,33 @@ private:
 
             if (u_code >= 0) {
             } else if (u_code == UNASSIGNED) {
-                u_code = 0xFFFD;
+                append_default_unicode(result.units, default_char);
+                node_idx = 0;
                 pos = seq_start;
+                seq_start = pos + 1;
+                continue;
             } else if (u_code == GB18030_CODE) {
                 if (pos < 3) {
-                    u_code = 0xFFFD;
+                    append_default_unicode(result.units, default_char);
+                    node_idx = 0;
                     pos = seq_start;
+                    seq_start = pos + 1;
+                    continue;
                 } else {
                     const uint32_t ptr = (input[pos - 3] - 0x81) * 12600 +
                                          (input[pos - 2] - 0x30) * 1260 +
                                          (input[pos - 1] - 0x81) * 10 +
                                          (cur - 0x30);
                     const auto idx = find_gb_by_pointer(ptr);
-                    u_code = idx >= 0
-                        ? static_cast<int32_t>(generated::GB_RANGES[spec_.gb_offset + idx].u_char +
-                                               ptr - generated::GB_RANGES[spec_.gb_offset + idx].gb_char)
-                        : 0xFFFD;
+                    if (idx >= 0) {
+                        u_code = static_cast<int32_t>(generated::GB_RANGES[spec_.gb_offset + idx].u_char +
+                                                      ptr - generated::GB_RANGES[spec_.gb_offset + idx].gb_char);
+                    } else {
+                        append_default_unicode(result.units, default_char);
+                        node_idx = 0;
+                        seq_start = pos + 1;
+                        continue;
+                    }
                 }
             } else if (u_code <= NODE_START) {
                 node_idx = static_cast<size_t>(NODE_START - u_code);
@@ -1051,6 +1178,651 @@ std::string maybe_strip_bom(std::string output, const ResolvedEncoding& resolved
 
 }  // namespace
 
+namespace detail {
+
+namespace {
+
+Buffer concat_if_needed(const Buffer& head, const Buffer& tail) {
+    return tail.length() == 0 ? head : Buffer::concat({head, tail});
+}
+
+bool should_add_bom(const ResolvedEncoding& resolved, const EncodeOptions& options) {
+    if (!resolved.bom_aware) return false;
+    return options.add_bom.value_or(resolved.kind == EncodingKind::utf16_auto ||
+                                    resolved.kind == EncodingKind::utf32_auto);
+}
+
+std::string with_utf8_bom(std::string_view input) {
+    return std::string("\xEF\xBB\xBF", 3) + std::string(input);
+}
+
+void append_utf16_unit_to_utf8(std::string& out,
+                               uint16_t unit,
+                               std::optional<uint16_t>& pending_high) {
+    if (pending_high.has_value()) {
+        const uint16_t high = *pending_high;
+        pending_high.reset();
+        if (unit >= 0xDC00 && unit <= 0xDFFF) {
+            const uint32_t cp = 0x10000 + ((static_cast<uint32_t>(high) - 0xD800) << 10) +
+                                (static_cast<uint32_t>(unit) - 0xDC00);
+            append_utf8(out, cp);
+            return;
+        }
+        append_utf8(out, high);
+    }
+
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+        pending_high = unit;
+        return;
+    }
+    append_utf8(out, unit);
+}
+
+void flush_pending_utf16_unit(std::string& out, std::optional<uint16_t>& pending_high) {
+    if (!pending_high.has_value()) return;
+    append_utf8(out, *pending_high);
+    pending_high.reset();
+}
+
+stream::StreamOptions to_stream_options(const IconvStreamOptions& options) {
+    stream::StreamOptions stream_options;
+    stream_options.context = options.context;
+    stream_options.highWaterMark = options.high_water_mark;
+    stream_options.emitClose = options.emit_close;
+    stream_options.autoDestroy = options.auto_destroy;
+    return stream_options;
+}
+
+Error::Ptr make_stream_error(const std::exception& e) {
+    return std::make_shared<Error>(e.what());
+}
+
+}  // namespace
+
+class EncoderState {
+public:
+    EncoderState(std::string_view encoding, const EncodeOptions& options)
+        : requested_(encoding), resolved_(resolve_encoding(encoding)), options_(options),
+          add_bom_pending_(should_add_bom(resolved_, options_)) {}
+
+    EncoderState(const Codec& codec, const EncodeOptions& options)
+        : requested_(codec.info.requested), resolved_(resolve_encoding(codec.info.requested)),
+          options_(options), add_bom_pending_(should_add_bom(resolved_, options_)) {}
+
+    Buffer write(std::string_view input) {
+        std::string chunk;
+        std::string_view text = input;
+        if (add_bom_pending_) {
+            chunk = with_utf8_bom(input);
+            text = chunk;
+        }
+        add_bom_pending_ = false;
+
+        switch (resolved_.kind) {
+            case EncodingKind::utf8:
+                return Buffer::from(std::string(text));
+            case EncodingKind::cesu8:
+                return buffer_from_bytes(encode_cesu8(text));
+            case EncodingKind::binary:
+                return buffer_from_bytes(encode_binary(text));
+            case EncodingKind::base64:
+                return write_base64(text);
+            case EncodingKind::hex:
+                return Buffer::from(std::string(text), "hex");
+            case EncodingKind::utf16le:
+            case EncodingKind::utf16_auto:
+                return buffer_from_bytes(encode_utf16le(text));
+            case EncodingKind::utf16be:
+                return buffer_from_bytes(encode_utf16be(text));
+            case EncodingKind::utf32le:
+                return buffer_from_bytes(encode_utf32(text, true));
+            case EncodingKind::utf32be:
+                return buffer_from_bytes(encode_utf32(text, false));
+            case EncodingKind::utf32_auto: {
+                const auto selected = normalize_default_encoding(options_.default_encoding, "utf32le", "utf32");
+                return buffer_from_bytes(encode_utf32(text, selected != "utf32be"));
+            }
+            case EncodingKind::utf7:
+                return encode_utf7_like(text, false);
+            case EncodingKind::utf7_imap:
+                return write_utf7_imap(text);
+            case EncodingKind::sbcs:
+                return get_sbcs(resolved_.spec_index).encode(text, current_default_single_byte());
+            case EncodingKind::dbcs:
+                return get_dbcs(resolved_.spec_index)
+                    .encode_write(text, current_default_single_byte(), dbcs_state_);
+        }
+        throw polycpp::TypeError("Unsupported encoding").setCode("ERR_ENCODING_NOT_SUPPORTED");
+    }
+
+    Buffer end() {
+        switch (resolved_.kind) {
+            case EncodingKind::base64:
+                return flush_base64();
+            case EncodingKind::utf7_imap:
+                return flush_utf7_imap();
+            case EncodingKind::dbcs:
+                return get_dbcs(resolved_.spec_index)
+                    .encode_end(current_default_single_byte(), dbcs_state_);
+            default:
+                return Buffer::alloc(0);
+        }
+    }
+
+    EncodingInfo info() const {
+        return EncodingInfo{requested_, resolved_.canonical, resolved_.converter, resolved_.bom_aware,
+                            resolved_.kind != EncodingKind::sbcs && resolved_.kind != EncodingKind::dbcs};
+    }
+
+private:
+    std::string requested_;
+    ResolvedEncoding resolved_;
+    EncodeOptions options_;
+    bool add_bom_pending_ = false;
+    std::string base64_prev_;
+    DbcsCodec::EncodeState dbcs_state_;
+    bool utf7_imap_in_base64_ = false;
+    std::vector<uint8_t> utf7_imap_accum_;
+
+    Buffer write_base64(std::string_view input) {
+        std::string value = base64_prev_ + std::string(input);
+        const size_t complete = value.size() - (value.size() % 4);
+        base64_prev_ = value.substr(complete);
+        return Buffer::from(value.substr(0, complete), "base64");
+    }
+
+    Buffer flush_base64() {
+        auto out = Buffer::from(base64_prev_, "base64");
+        base64_prev_.clear();
+        return out;
+    }
+
+    static void append_base64(std::vector<uint8_t>& out, const std::vector<uint8_t>& bytes, bool trim_padding) {
+        if (bytes.empty()) return;
+        auto encoded = Buffer::from(bytes).toString("base64");
+        if (trim_padding) encoded = trim_base64_padding(std::move(encoded));
+        std::replace(encoded.begin(), encoded.end(), '/', ',');
+        out.insert(out.end(), encoded.begin(), encoded.end());
+    }
+
+    Buffer write_utf7_imap(std::string_view input) {
+        const auto units = utf8_to_utf16(input);
+        std::vector<uint8_t> out;
+        out.reserve(units.size() * 5 + 10);
+
+        for (uint16_t unit : units) {
+            if (unit >= 0x20 && unit <= 0x7E) {
+                if (utf7_imap_in_base64_) {
+                    append_base64(out, utf7_imap_accum_, true);
+                    utf7_imap_accum_.clear();
+                    out.push_back('-');
+                    utf7_imap_in_base64_ = false;
+                }
+                out.push_back(static_cast<uint8_t>(unit));
+                if (unit == '&') out.push_back('-');
+                continue;
+            }
+
+            if (!utf7_imap_in_base64_) {
+                out.push_back('&');
+                utf7_imap_in_base64_ = true;
+            }
+            utf7_imap_accum_.push_back(static_cast<uint8_t>(unit >> 8));
+            utf7_imap_accum_.push_back(static_cast<uint8_t>(unit & 0xFF));
+            if (utf7_imap_accum_.size() == 6) {
+                append_base64(out, utf7_imap_accum_, false);
+                utf7_imap_accum_.clear();
+            }
+        }
+
+        return buffer_from_bytes(out);
+    }
+
+    Buffer flush_utf7_imap() {
+        std::vector<uint8_t> out;
+        out.reserve(10);
+        if (utf7_imap_in_base64_) {
+            append_base64(out, utf7_imap_accum_, true);
+            utf7_imap_accum_.clear();
+            out.push_back('-');
+            utf7_imap_in_base64_ = false;
+        }
+        return buffer_from_bytes(out);
+    }
+};
+
+class DecoderState {
+public:
+    DecoderState(std::string_view encoding, const DecodeOptions& options)
+        : requested_(encoding), resolved_(resolve_encoding(encoding)), options_(options),
+          strip_bom_pending_(resolved_.bom_aware && options_.strip_bom) {
+        if (resolved_.kind == EncodingKind::utf8) {
+            string_decoder_.emplace("utf8");
+        }
+    }
+
+    DecoderState(const Codec& codec, const DecodeOptions& options)
+        : requested_(codec.info.requested), resolved_(resolve_encoding(codec.info.requested)),
+          options_(options), strip_bom_pending_(resolved_.bom_aware && options_.strip_bom) {
+        if (resolved_.kind == EncodingKind::utf8) {
+            string_decoder_.emplace("utf8");
+        }
+    }
+
+    std::string write(const Buffer& input) {
+        return apply_bom_strip(write_raw(input));
+    }
+
+    std::string end() {
+        return apply_bom_strip(end_raw());
+    }
+
+    EncodingInfo info() const {
+        return EncodingInfo{requested_, resolved_.canonical, resolved_.converter, resolved_.bom_aware,
+                            resolved_.kind != EncodingKind::sbcs && resolved_.kind != EncodingKind::dbcs};
+    }
+
+private:
+    std::string requested_;
+    ResolvedEncoding resolved_;
+    DecodeOptions options_;
+    bool strip_bom_pending_ = false;
+    std::optional<string_decoder::StringDecoder> string_decoder_;
+    DbcsCodec::DecodeState dbcs_state_;
+    std::optional<uint16_t> pending_utf16_high_;
+    std::optional<uint8_t> utf16_overflow_;
+    std::vector<uint8_t> utf32_overflow_;
+    std::vector<uint8_t> auto_initial_;
+    std::optional<bool> auto_little_endian_;
+    bool utf7_in_base64_ = false;
+    std::string utf7_base64_accum_;
+    uint32_t cesu_acc_ = 0;
+    int cesu_cont_bytes_ = 0;
+    int cesu_acc_bytes_ = 0;
+    std::optional<uint16_t> cesu_pending_high_;
+
+    std::string write_raw(const Buffer& input) {
+        switch (resolved_.kind) {
+            case EncodingKind::utf8:
+                return string_decoder_->write(input);
+            case EncodingKind::cesu8:
+                return write_cesu8(input);
+            case EncodingKind::binary:
+                return input.toString("latin1");
+            case EncodingKind::base64:
+                return input.toString("base64");
+            case EncodingKind::hex:
+                return input.toString("hex");
+            case EncodingKind::utf16le:
+                return write_utf16(input, true);
+            case EncodingKind::utf16be:
+                return write_utf16(input, false);
+            case EncodingKind::utf16_auto:
+                return write_utf16_auto(input);
+            case EncodingKind::utf32le:
+                return write_utf32(input, true);
+            case EncodingKind::utf32be:
+                return write_utf32(input, false);
+            case EncodingKind::utf32_auto:
+                return write_utf32_auto(input);
+            case EncodingKind::utf7:
+                return write_utf7(input, false);
+            case EncodingKind::utf7_imap:
+                return write_utf7(input, true);
+            case EncodingKind::sbcs:
+                return get_sbcs(resolved_.spec_index).decode(input);
+            case EncodingKind::dbcs:
+                return get_dbcs(resolved_.spec_index)
+                    .decode_write(input, current_default_unicode(), dbcs_state_);
+        }
+        throw polycpp::TypeError("Unsupported encoding").setCode("ERR_ENCODING_NOT_SUPPORTED");
+    }
+
+    std::string end_raw() {
+        switch (resolved_.kind) {
+            case EncodingKind::utf8:
+                return string_decoder_->end();
+            case EncodingKind::cesu8:
+                return end_cesu8();
+            case EncodingKind::utf16le:
+            case EncodingKind::utf16be:
+                return end_utf16();
+            case EncodingKind::utf16_auto:
+                return end_utf16_auto();
+            case EncodingKind::utf32le:
+            case EncodingKind::utf32be:
+                return end_utf32();
+            case EncodingKind::utf32_auto:
+                return end_utf32_auto();
+            case EncodingKind::utf7:
+            case EncodingKind::utf7_imap:
+                return end_utf7(resolved_.kind == EncodingKind::utf7_imap);
+            case EncodingKind::dbcs:
+                return get_dbcs(resolved_.spec_index)
+                    .decode_end(current_default_unicode(), dbcs_state_);
+            default:
+                return "";
+        }
+    }
+
+    std::string apply_bom_strip(std::string output) {
+        if (!strip_bom_pending_ || output.empty()) return output;
+        output = strip_utf8_bom(std::move(output));
+        strip_bom_pending_ = false;
+        return output;
+    }
+
+    std::string write_cesu8(const Buffer& input) {
+        std::string out;
+        out.reserve(input.length());
+        const auto default_unicode = current_default_unicode();
+        for (size_t i = 0; i < input.length(); ++i) {
+            const uint8_t b = input[i];
+            if ((b & 0xC0) != 0x80) {
+                if (cesu_cont_bytes_ > 0) {
+                    out += default_unicode;
+                    cesu_cont_bytes_ = 0;
+                }
+                if (b < 0x80) {
+                    append_utf16_unit_to_utf8(out, b, cesu_pending_high_);
+                } else if (b < 0xE0) {
+                    cesu_acc_ = b & 0x1F;
+                    cesu_cont_bytes_ = 1;
+                    cesu_acc_bytes_ = 1;
+                } else if (b < 0xF0) {
+                    cesu_acc_ = b & 0x0F;
+                    cesu_cont_bytes_ = 2;
+                    cesu_acc_bytes_ = 1;
+                } else {
+                    out += default_unicode;
+                }
+            } else if (cesu_cont_bytes_ > 0) {
+                cesu_acc_ = (cesu_acc_ << 6) | (b & 0x3F);
+                --cesu_cont_bytes_;
+                ++cesu_acc_bytes_;
+                if (cesu_cont_bytes_ == 0) {
+                    if ((cesu_acc_bytes_ == 2 && cesu_acc_ < 0x80 && cesu_acc_ > 0) ||
+                        (cesu_acc_bytes_ == 3 && cesu_acc_ < 0x800)) {
+                        out += default_unicode;
+                    } else {
+                        append_utf16_unit_to_utf8(out, static_cast<uint16_t>(cesu_acc_), cesu_pending_high_);
+                    }
+                }
+            } else {
+                out += default_unicode;
+            }
+        }
+        return out;
+    }
+
+    std::string end_cesu8() {
+        std::string out;
+        if (cesu_cont_bytes_ > 0) {
+            out += current_default_unicode();
+            cesu_cont_bytes_ = 0;
+        }
+        flush_pending_utf16_unit(out, cesu_pending_high_);
+        return out;
+    }
+
+    std::string write_utf16(const Buffer& input, bool little_endian) {
+        std::string out;
+        out.reserve(input.length());
+        size_t i = 0;
+        if (utf16_overflow_.has_value() && input.length() > 0) {
+            const uint8_t prev = *utf16_overflow_;
+            utf16_overflow_.reset();
+            const uint16_t unit = little_endian
+                ? static_cast<uint16_t>(prev | (input[0] << 8))
+                : static_cast<uint16_t>((prev << 8) | input[0]);
+            append_utf16_unit_to_utf8(out, unit, pending_utf16_high_);
+            i = 1;
+        }
+
+        for (; i + 1 < input.length(); i += 2) {
+            const uint16_t unit = little_endian
+                ? static_cast<uint16_t>(input[i] | (input[i + 1] << 8))
+                : static_cast<uint16_t>((input[i] << 8) | input[i + 1]);
+            append_utf16_unit_to_utf8(out, unit, pending_utf16_high_);
+        }
+
+        if (i < input.length()) utf16_overflow_ = input[i];
+        return out;
+    }
+
+    std::string end_utf16() {
+        utf16_overflow_.reset();
+        std::string out;
+        flush_pending_utf16_unit(out, pending_utf16_high_);
+        return out;
+    }
+
+    std::string write_utf16_auto(const Buffer& input) {
+        if (!auto_little_endian_.has_value()) {
+            auto_initial_.insert(auto_initial_.end(), input.data(), input.data() + input.length());
+            if (auto_initial_.size() < 16) return "";
+            const auto selected = choose_utf16_decode(Buffer::from(auto_initial_), options_);
+            auto_little_endian_ = selected != "utf16be";
+            const auto initial = Buffer::from(auto_initial_);
+            auto_initial_.clear();
+            return write_utf16(initial, *auto_little_endian_);
+        }
+        return write_utf16(input, *auto_little_endian_);
+    }
+
+    std::string end_utf16_auto() {
+        if (!auto_little_endian_.has_value()) {
+            const auto selected = choose_utf16_decode(Buffer::from(auto_initial_), options_);
+            auto_little_endian_ = selected != "utf16be";
+            const auto initial = Buffer::from(auto_initial_);
+            auto_initial_.clear();
+            return write_utf16(initial, *auto_little_endian_) + end_utf16();
+        }
+        return end_utf16();
+    }
+
+    std::string write_utf32(const Buffer& input, bool little_endian) {
+        std::vector<uint8_t> bytes;
+        bytes.reserve(utf32_overflow_.size() + input.length());
+        bytes.insert(bytes.end(), utf32_overflow_.begin(), utf32_overflow_.end());
+        bytes.insert(bytes.end(), input.data(), input.data() + input.length());
+        utf32_overflow_.clear();
+
+        std::string out;
+        out.reserve(bytes.size());
+        const auto default_unicode = current_default_unicode();
+        size_t i = 0;
+        for (; i + 3 < bytes.size(); i += 4) {
+            const uint32_t cp = little_endian
+                ? static_cast<uint32_t>(bytes[i]) | (static_cast<uint32_t>(bytes[i + 1]) << 8) |
+                      (static_cast<uint32_t>(bytes[i + 2]) << 16) | (static_cast<uint32_t>(bytes[i + 3]) << 24)
+                : (static_cast<uint32_t>(bytes[i]) << 24) | (static_cast<uint32_t>(bytes[i + 1]) << 16) |
+                      (static_cast<uint32_t>(bytes[i + 2]) << 8) | static_cast<uint32_t>(bytes[i + 3]);
+            if (cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) out += default_unicode;
+            else append_utf8(out, cp);
+        }
+        utf32_overflow_.assign(bytes.begin() + static_cast<std::ptrdiff_t>(i), bytes.end());
+        return out;
+    }
+
+    std::string end_utf32() {
+        utf32_overflow_.clear();
+        return "";
+    }
+
+    std::string write_utf32_auto(const Buffer& input) {
+        if (!auto_little_endian_.has_value()) {
+            auto_initial_.insert(auto_initial_.end(), input.data(), input.data() + input.length());
+            if (auto_initial_.size() < 32) return "";
+            const auto selected = choose_utf32_decode(Buffer::from(auto_initial_), options_);
+            auto_little_endian_ = selected != "utf32be";
+            const auto initial = Buffer::from(auto_initial_);
+            auto_initial_.clear();
+            return write_utf32(initial, *auto_little_endian_);
+        }
+        return write_utf32(input, *auto_little_endian_);
+    }
+
+    std::string end_utf32_auto() {
+        if (!auto_little_endian_.has_value()) {
+            const auto selected = choose_utf32_decode(Buffer::from(auto_initial_), options_);
+            auto_little_endian_ = selected != "utf32be";
+            const auto initial = Buffer::from(auto_initial_);
+            auto_initial_.clear();
+            return write_utf32(initial, *auto_little_endian_) + end_utf32();
+        }
+        return end_utf32();
+    }
+
+    std::string write_utf7(const Buffer& input, bool imap) {
+        std::string output;
+        const uint8_t shift = imap ? '&' : '+';
+        const uint8_t unshift = '-';
+        size_t i = 0;
+        size_t direct_start = 0;
+
+        while (i < input.length()) {
+            if (!utf7_in_base64_) {
+                if (input[i] == shift) {
+                    output += ascii_decode_lossy(input.data() + direct_start, i - direct_start);
+                    ++i;
+                    direct_start = i;
+                    utf7_in_base64_ = true;
+                } else {
+                    ++i;
+                }
+                continue;
+            }
+
+            if (is_base64_char(input[i], imap)) {
+                ++i;
+                continue;
+            }
+
+            if (i == direct_start && input[i] == unshift) {
+                output.push_back(static_cast<char>(shift));
+            } else {
+                auto b64 = utf7_base64_accum_ +
+                           ascii_decode_lossy(input.data() + direct_start, i - direct_start);
+                if (imap) std::replace(b64.begin(), b64.end(), ',', '/');
+                const auto bytes = Buffer::from(b64, "base64");
+                output += decode_utf16_bytes(bytes.data(), bytes.length(), false);
+            }
+
+            utf7_base64_accum_.clear();
+            utf7_in_base64_ = false;
+            if (input[i] != unshift) {
+                direct_start = i;
+            } else {
+                ++i;
+                direct_start = i;
+            }
+        }
+
+        if (!utf7_in_base64_) {
+            output += ascii_decode_lossy(input.data() + direct_start, input.length() - direct_start);
+        } else {
+            auto b64 = utf7_base64_accum_ +
+                       ascii_decode_lossy(input.data() + direct_start, input.length() - direct_start);
+            if (imap) std::replace(b64.begin(), b64.end(), ',', '/');
+            const size_t decodable = b64.size() - (b64.size() % 8);
+            utf7_base64_accum_ = b64.substr(decodable);
+            b64.resize(decodable);
+            if (!b64.empty()) {
+                const auto bytes = Buffer::from(b64, "base64");
+                output += decode_utf16_bytes(bytes.data(), bytes.length(), false);
+            }
+        }
+
+        return output;
+    }
+
+    std::string end_utf7(bool imap) {
+        std::string output;
+        if (utf7_in_base64_ && !utf7_base64_accum_.empty()) {
+            auto b64 = utf7_base64_accum_;
+            if (imap) std::replace(b64.begin(), b64.end(), ',', '/');
+            const auto bytes = Buffer::from(b64, "base64");
+            output += decode_utf16_bytes(bytes.data(), bytes.length(), false);
+        }
+        utf7_in_base64_ = false;
+        utf7_base64_accum_.clear();
+        return output;
+    }
+};
+
+class EncodeStreamImpl : public stream::impl::TransformImpl {
+public:
+    EncodeStreamImpl(Encoder encoder, const IconvStreamOptions& options)
+        : stream::impl::ImplBase(options.context ? *options.context : EventLoop::instance().context()),
+          stream::impl::TransformImpl(to_stream_options(options)),
+          encoder_(std::move(encoder)) {}
+
+protected:
+    void _transform(const Buffer& chunk,
+                    const std::string& encoding,
+                    std::function<void(Error::Ptr)> callback) override {
+        (void)encoding;
+        try {
+            auto out = encoder_.write(chunk.toString("utf8"));
+            if (out.length() > 0) push(out);
+            if (callback) callback(nullptr);
+        } catch (const std::exception& e) {
+            if (callback) callback(make_stream_error(e));
+        }
+    }
+
+    void _flush(std::function<void(Error::Ptr)> callback) override {
+        try {
+            auto out = encoder_.end();
+            if (out.length() > 0) push(out);
+            if (callback) callback(nullptr);
+        } catch (const std::exception& e) {
+            if (callback) callback(make_stream_error(e));
+        }
+    }
+
+private:
+    Encoder encoder_;
+};
+
+class DecodeStreamImpl : public stream::impl::TransformImpl {
+public:
+    DecodeStreamImpl(Decoder decoder, const IconvStreamOptions& options)
+        : stream::impl::ImplBase(options.context ? *options.context : EventLoop::instance().context()),
+          stream::impl::TransformImpl(to_stream_options(options)),
+          decoder_(std::move(decoder)) {}
+
+protected:
+    void _transform(const Buffer& chunk,
+                    const std::string& encoding,
+                    std::function<void(Error::Ptr)> callback) override {
+        (void)encoding;
+        try {
+            auto out = decoder_.write(chunk);
+            if (!out.empty()) push(Buffer::from(out));
+            if (callback) callback(nullptr);
+        } catch (const std::exception& e) {
+            if (callback) callback(make_stream_error(e));
+        }
+    }
+
+    void _flush(std::function<void(Error::Ptr)> callback) override {
+        try {
+            auto out = decoder_.end();
+            if (!out.empty()) push(Buffer::from(out));
+            if (callback) callback(nullptr);
+        } catch (const std::exception& e) {
+            if (callback) callback(make_stream_error(e));
+        }
+    }
+
+private:
+    Decoder decoder_;
+};
+
+}  // namespace detail
+
 std::string canonicalize_encoding(std::string_view encoding) {
     std::string lower;
     lower.reserve(encoding.size());
@@ -1082,89 +1854,191 @@ EncodingInfo inspect_encoding(std::string_view encoding) {
                         resolved.kind != EncodingKind::sbcs && resolved.kind != EncodingKind::dbcs};
 }
 
+Codec get_codec(std::string_view encoding) {
+    return Codec{inspect_encoding(encoding)};
+}
+
+Encoder Codec::encoder(const EncodeOptions& options) const {
+    return Encoder(*this, options);
+}
+
+Decoder Codec::decoder(const DecodeOptions& options) const {
+    return Decoder(*this, options);
+}
+
+Encoder::Encoder(std::string_view encoding, const EncodeOptions& options)
+    : state_(std::make_shared<detail::EncoderState>(encoding, options)) {}
+
+Encoder::Encoder(const Codec& codec, const EncodeOptions& options)
+    : state_(std::make_shared<detail::EncoderState>(codec, options)) {}
+
+Encoder::Encoder(std::shared_ptr<detail::EncoderState> state)
+    : state_(std::move(state)) {}
+
+Encoder::~Encoder() = default;
+
+Buffer Encoder::write(std::string_view input) {
+    return state_->write(input);
+}
+
+Buffer Encoder::end() {
+    return state_->end();
+}
+
+EncodingInfo Encoder::info() const {
+    return state_->info();
+}
+
+Decoder::Decoder(std::string_view encoding, const DecodeOptions& options)
+    : state_(std::make_shared<detail::DecoderState>(encoding, options)) {}
+
+Decoder::Decoder(const Codec& codec, const DecodeOptions& options)
+    : state_(std::make_shared<detail::DecoderState>(codec, options)) {}
+
+Decoder::Decoder(std::shared_ptr<detail::DecoderState> state)
+    : state_(std::move(state)) {}
+
+Decoder::~Decoder() = default;
+
+std::string Decoder::write(const Buffer& input) {
+    return state_->write(input);
+}
+
+std::string Decoder::end() {
+    return state_->end();
+}
+
+EncodingInfo Decoder::info() const {
+    return state_->info();
+}
+
+Encoder get_encoder(std::string_view encoding, const EncodeOptions& options) {
+    return Encoder(encoding, options);
+}
+
+Decoder get_decoder(std::string_view encoding, const DecodeOptions& options) {
+    return Decoder(encoding, options);
+}
+
+std::string default_char_unicode() {
+    return current_default_unicode();
+}
+
+void set_default_char_unicode(std::string value) {
+    std::lock_guard<std::mutex> lock(defaults_mutex());
+    default_unicode_storage() = std::move(value);
+}
+
+std::string default_char_single_byte() {
+    return current_default_single_byte();
+}
+
+void set_default_char_single_byte(std::string value) {
+    std::lock_guard<std::mutex> lock(defaults_mutex());
+    default_single_byte_storage() = std::move(value);
+}
+
 Buffer encode(std::string_view input, std::string_view encoding, const EncodeOptions& options) {
-    const auto resolved = resolve_encoding(encoding);
-    switch (resolved.kind) {
-        case EncodingKind::utf8:
-            return with_bom(std::vector<uint8_t>(input.begin(), input.end()), resolved, options);
-        case EncodingKind::cesu8:
-            return with_bom(encode_cesu8(input), resolved, options);
-        case EncodingKind::binary:
-            return buffer_from_bytes(encode_binary(input));
-        case EncodingKind::base64:
-            return Buffer::from(std::string(input), "base64");
-        case EncodingKind::hex:
-            return Buffer::from(std::string(input), "hex");
-        case EncodingKind::utf16le:
-            return with_bom(encode_utf16le(input), resolved, options);
-        case EncodingKind::utf16be:
-            return with_bom(encode_utf16be(input), resolved, options);
-        case EncodingKind::utf16_auto:
-            return with_bom(encode_utf16le(input), resolved, options);
-        case EncodingKind::utf32le:
-            return with_bom(encode_utf32(input, true), resolved, options);
-        case EncodingKind::utf32be:
-            return with_bom(encode_utf32(input, false), resolved, options);
-        case EncodingKind::utf32_auto: {
-            const auto selected = normalize_default_encoding(options.default_encoding, "utf32le", "utf32");
-            auto bytes = encode_utf32(input, selected != "utf32be");
-            if (options.add_bom.value_or(true)) {
-                if (selected == "utf32be") prepend_bytes(bytes, {0x00, 0x00, 0xFE, 0xFF});
-                else prepend_bytes(bytes, {0xFF, 0xFE, 0x00, 0x00});
-            }
-            return buffer_from_bytes(bytes);
-        }
-        case EncodingKind::utf7:
-            return encode_utf7_like(maybe_add_utf8_bom(input, resolved, options), false);
-        case EncodingKind::utf7_imap:
-            return encode_utf7_like(maybe_add_utf8_bom(input, resolved, options), true);
-        case EncodingKind::sbcs:
-            return get_sbcs(resolved.spec_index).encode(input);
-        case EncodingKind::dbcs:
-            return get_dbcs(resolved.spec_index).encode(input);
-    }
-    throw polycpp::TypeError("Unsupported encoding").setCode("ERR_ENCODING_NOT_SUPPORTED");
+    auto encoder = get_encoder(encoding, options);
+    auto head = encoder.write(input);
+    return detail::concat_if_needed(head, encoder.end());
 }
 
 std::string decode(const Buffer& input, std::string_view encoding, const DecodeOptions& options) {
-    const auto resolved = resolve_encoding(encoding);
-    switch (resolved.kind) {
-        case EncodingKind::utf8:
-            return maybe_strip_bom(decode_utf8_bytes(input.data(), input.length()), resolved, options);
-        case EncodingKind::cesu8:
-            return maybe_strip_bom(decode_cesu8(input.data(), input.length()), resolved, options);
-        case EncodingKind::binary:
-            return input.toString("latin1");
-        case EncodingKind::base64:
-            return input.toString("base64");
-        case EncodingKind::hex:
-            return input.toString("hex");
-        case EncodingKind::utf16le:
-            return maybe_strip_bom(decode_utf16_bytes(input.data(), input.length(), true), resolved, options);
-        case EncodingKind::utf16be:
-            return maybe_strip_bom(decode_utf16_bytes(input.data(), input.length(), false), resolved, options);
-        case EncodingKind::utf16_auto: {
-            const auto selected = choose_utf16_decode(input, options);
-            return maybe_strip_bom(decode_utf16_bytes(input.data(), input.length(), selected != "utf16be"), resolved, options);
-        }
-        case EncodingKind::utf32le:
-            return maybe_strip_bom(decode_utf32_bytes(input.data(), input.length(), true), resolved, options);
-        case EncodingKind::utf32be:
-            return maybe_strip_bom(decode_utf32_bytes(input.data(), input.length(), false), resolved, options);
-        case EncodingKind::utf32_auto: {
-            const auto selected = choose_utf32_decode(input, options);
-            return maybe_strip_bom(decode_utf32_bytes(input.data(), input.length(), selected != "utf32be"), resolved, options);
-        }
-        case EncodingKind::utf7:
-            return maybe_strip_bom(decode_utf7_like(input, false), resolved, options);
-        case EncodingKind::utf7_imap:
-            return maybe_strip_bom(decode_utf7_like(input, true), resolved, options);
-        case EncodingKind::sbcs:
-            return get_sbcs(resolved.spec_index).decode(input);
-        case EncodingKind::dbcs:
-            return get_dbcs(resolved.spec_index).decode(input);
-    }
-    throw polycpp::TypeError("Unsupported encoding").setCode("ERR_ENCODING_NOT_SUPPORTED");
+    auto decoder = get_decoder(encoding, options);
+    return decoder.write(input) + decoder.end();
+}
+
+bool supports_streams() noexcept {
+    return true;
+}
+
+void enable_streaming_api() {}
+
+EncodeStream::EncodeStream(std::string_view encoding,
+                           const EncodeOptions& options,
+                           const IconvStreamOptions& stream_options)
+    : EncodeStream(Encoder(encoding, options), stream_options) {}
+
+EncodeStream::EncodeStream(Encoder encoder, const IconvStreamOptions& stream_options)
+    : EncodeStream(std::make_shared<detail::EncodeStreamImpl>(std::move(encoder), stream_options)) {}
+
+EncodeStream::EncodeStream(std::shared_ptr<detail::EncodeStreamImpl> impl)
+    : stream::impl::StreamHandle(std::static_pointer_cast<stream::impl::ImplBase>(impl)),
+      stream::Transform(std::static_pointer_cast<stream::impl::TransformImpl>(impl)) {}
+
+EncodeStream::~EncodeStream() = default;
+
+EncodeStream& EncodeStream::collect(std::function<void(Error::Ptr, Buffer)> callback) {
+    auto chunks = std::make_shared<std::vector<Buffer>>();
+    auto finished = std::make_shared<bool>(false);
+    auto cb = std::make_shared<std::function<void(Error::Ptr, Buffer)>>(std::move(callback));
+    on(stream::event::Data, [chunks](const Buffer& chunk) {
+        chunks->push_back(chunk);
+    });
+    on(stream::event::DataString, [chunks](const std::string& chunk) {
+        chunks->push_back(Buffer::from(chunk));
+    });
+    once(stream::event::Error_, [cb, finished](const Error& error) mutable {
+        if (*finished) return;
+        *finished = true;
+        if (*cb) (*cb)(std::make_shared<Error>(error.what()), Buffer::alloc(0));
+    });
+    once(stream::event::End, [chunks, cb, finished]() mutable {
+        if (*finished) return;
+        *finished = true;
+        if (*cb) (*cb)(nullptr, Buffer::concat(*chunks));
+    });
+    return *this;
+}
+
+DecodeStream::DecodeStream(std::string_view encoding,
+                           const DecodeOptions& options,
+                           const IconvStreamOptions& stream_options)
+    : DecodeStream(Decoder(encoding, options), stream_options) {}
+
+DecodeStream::DecodeStream(Decoder decoder, const IconvStreamOptions& stream_options)
+    : DecodeStream(std::make_shared<detail::DecodeStreamImpl>(std::move(decoder), stream_options)) {}
+
+DecodeStream::DecodeStream(std::shared_ptr<detail::DecodeStreamImpl> impl)
+    : stream::impl::StreamHandle(std::static_pointer_cast<stream::impl::ImplBase>(impl)),
+      stream::Transform(std::static_pointer_cast<stream::impl::TransformImpl>(impl)) {}
+
+DecodeStream::~DecodeStream() = default;
+
+DecodeStream& DecodeStream::collect(std::function<void(Error::Ptr, std::string)> callback) {
+    auto output = std::make_shared<std::string>();
+    auto finished = std::make_shared<bool>(false);
+    auto cb = std::make_shared<std::function<void(Error::Ptr, std::string)>>(std::move(callback));
+    on(stream::event::Data, [output](const Buffer& chunk) {
+        *output += chunk.toString("utf8");
+    });
+    on(stream::event::DataString, [output](const std::string& chunk) {
+        *output += chunk;
+    });
+    once(stream::event::Error_, [cb, finished](const Error& error) mutable {
+        if (*finished) return;
+        *finished = true;
+        if (*cb) (*cb)(std::make_shared<Error>(error.what()), "");
+    });
+    once(stream::event::End, [output, cb, finished]() mutable {
+        if (*finished) return;
+        *finished = true;
+        if (*cb) (*cb)(nullptr, *output);
+    });
+    return *this;
+}
+
+EncodeStream encode_stream(std::string_view encoding,
+                           const EncodeOptions& options,
+                           const IconvStreamOptions& stream_options) {
+    return EncodeStream(encoding, options, stream_options);
+}
+
+DecodeStream decode_stream(std::string_view encoding,
+                           const DecodeOptions& options,
+                           const IconvStreamOptions& stream_options) {
+    return DecodeStream(encoding, options, stream_options);
 }
 
 }  // namespace polycpp::iconv_lite

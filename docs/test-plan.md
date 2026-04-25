@@ -10,6 +10,9 @@
 - Windows-1251, ISO-8859-15, GBK/GB18030, Shift_JIS, EUC-KR, UTF-7, UTF-7-IMAP, and CESU-8 sample vectors match upstream-generated expected bytes.
 - Untranslatable characters encode as `?` for single-byte encodings.
 - Unknown encodings throw `polycpp::TypeError`.
+- `get_codec`, `get_encoder`, and `get_decoder` expose stateful conversion and preserve chunk-boundary state.
+- `encode_stream` and `decode_stream` transform chunks through `polycpp::stream::Transform`.
+- Mutable replacement defaults affect future conversions and can be restored.
 
 ## Integration tests
 
@@ -17,6 +20,8 @@
 - CMake config links only the companion target and polycpp; embedded polycpp defaults to `POLYCPP_UNICODE=builtin`, so no ICU/iconv link is required for standalone validation.
 - Example target builds with `POLYCPP_ICONV_LITE_BUILD_EXAMPLES=ON`.
 - Documentation build succeeds with Doxygen and Sphinx.
+- Real service-backed e2e coverage: not applicable; this is not an external service, database, or network protocol client.
+- Stateful parser/session-state coverage: low-level encoder/decoder tests cover base64 carry state, DBCS incomplete byte sequences, UTF-7-IMAP base64 state, and UTF-16/UTF-32 auto-detection chunks.
 
 ## Compatibility tests adapted from upstream
 
@@ -58,6 +63,6 @@ Commands run on 2026-04-25:
 Results:
 
 - Build passed without a direct iconv-lite ICU/iconv dependency.
-- 10 GoogleTest cases passed.
+- 15 GoogleTest cases passed.
 - Example output matched README: `cff0e8e2e5f2` followed by `Привет`.
 - Documentation build, post-implementation validation, and public readiness checks passed.

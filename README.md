@@ -15,13 +15,13 @@ Implemented:
 - `base64`, `hex`, `binary`, ASCII, latin1, Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK, GB18030, Big5, EUC-JP, and EUC-KR through upstream generated tables and aliases.
 - BOM stripping and prepend behavior for BOM-aware encodings.
 - `polycpp::buffer::Buffer` as the byte boundary.
-
-Deferred:
-
-- Node stream APIs: `encodeStream`, `decodeStream`, and `enableStreamingAPI`.
-- Dynamic codec registry APIs: `getCodec`, `getEncoder`, and `getDecoder`.
-- Mutable module globals such as `defaultCharUnicode` and `defaultCharSingleByte`.
-- Node stream and dynamic codec registry parity.
+- Stateful low-level `get_codec`/`get_encoder`/`get_decoder` APIs, with
+  JavaScript-name aliases `getCodec`, `getEncoder`, and `getDecoder`.
+- `EncodeStream`/`DecodeStream` transform streams through
+  `polycpp::stream`, plus `encode_stream`, `decode_stream`, and
+  `enable_streaming_api` compatibility hooks.
+- Mutable replacement defaults through `set_default_char_unicode` and
+  `set_default_char_single_byte`.
 
 This repo does not imply full parity with upstream `iconv-lite`. Implemented and deferred behavior is tracked in `docs/research.md`, `docs/api-mapping.md`, and `docs/divergences.md`.
 

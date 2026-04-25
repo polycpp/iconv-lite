@@ -2,7 +2,7 @@ iconv-lite
 ==========
 
 C++ companion port of npm ``iconv-lite`` for polycpp applications that need
-batch conversion between UTF-8 text and legacy byte encodings.
+batch or streaming conversion between UTF-8 text and legacy byte encodings.
 
 .. code-block:: cpp
 
@@ -28,11 +28,11 @@ batch conversion between UTF-8 text and legacy byte encodings.
       Legacy encoding tables are generated from the upstream iconv-lite
       JavaScript data files and used by local C++ codecs.
 
-   .. grid-item-card:: Clear scope
+   .. grid-item-card:: Stateful adapters
       :margin: 1
 
-      Stream APIs and dynamic codec registry internals are deferred and
-      documented as unsupported in this port version.
+      Low-level encoder/decoder objects and transform streams preserve
+      chunk-boundary state for stream-oriented conversions.
 
 Getting started
 ---------------

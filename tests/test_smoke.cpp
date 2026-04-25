@@ -149,3 +149,103 @@ TEST(iconv_lite, throws_for_unknown_encoding) {
     EXPECT_THROW((void)iconv::encode("abc", "not-a-codec"), polycpp::TypeError);
     EXPECT_THROW((void)iconv::decode(iconv::Buffer::from("abc"), "constructor"), polycpp::TypeError);
 }
+
+TEST(iconv_lite, exposes_dynamic_codec_encoder_and_decoder_apis) {
+    const auto codec = iconv::get_codec("windows-1251");
+    EXPECT_EQ(codec.info.canonical, "windows1251");
+    EXPECT_EQ(codec.info.converter, "windows1251");
+    EXPECT_FALSE(codec.internal());
+
+    auto encoder = iconv::getEncoder("base64");
+    EXPECT_EQ(encoder.write("aGV").length(), 0u);
+    EXPECT_EQ(encoder.write("sbG8gd2").toString("latin1"), "hello ");
+    EXPECT_EQ(encoder.write("9ybGQ=").toString("latin1"), "world");
+    EXPECT_EQ(encoder.end().length(), 0u);
+
+    auto decoder = iconv::get_decoder("utf8");
+    EXPECT_EQ(decoder.write(iconv::Buffer::from({0xF0})), "");
+    EXPECT_EQ(decoder.write(iconv::Buffer::from({0x9F, 0x98})), "");
+    EXPECT_EQ(decoder.write(iconv::Buffer::from({0xBB})), "😻");
+    EXPECT_EQ(decoder.end(), "");
+
+    EXPECT_TRUE(iconv::encodingExists("gb18030"));
+    EXPECT_EQ(iconv::_canonicalizeEncoding("UTF-16LE"), "utf16le");
+}
+
+TEST(iconv_lite, stateful_decoders_preserve_chunk_boundaries) {
+    auto gbk = iconv::get_decoder("gbk");
+    EXPECT_EQ(gbk.write(iconv::Buffer::from({0x61, 0x81})), "a");
+    EXPECT_EQ(gbk.write(iconv::Buffer::from({0x40, 0x61})), "丂a");
+    EXPECT_EQ(gbk.end(), "");
+
+    auto truncated = iconv::get_decoder("gbk");
+    EXPECT_EQ(truncated.write(iconv::Buffer::from({0x61, 0x81})), "a");
+    EXPECT_EQ(truncated.end(), "�");
+
+    auto utf16be = iconv::get_decoder("utf16be");
+    EXPECT_EQ(utf16be.write(iconv::Buffer::from({0x00, 0x61, 0x00})), "a");
+    EXPECT_EQ(utf16be.write(iconv::Buffer::from({0x62, 0x00, 0x63})), "bc");
+
+    auto utf32 = iconv::get_decoder("utf32");
+    EXPECT_EQ(utf32.write(iconv::Buffer::from({
+                  0x00, 0x00, 0x00, 0x61,
+                  0x00, 0x00, 0x00, 0x62,
+                  0x00, 0x00, 0x00, 0x63,
+                  0x00, 0x00, 0x00, 0x64})),
+              "");
+    EXPECT_EQ(utf32.write(iconv::Buffer::from({
+                  0x00, 0x00, 0x00, 0x61,
+                  0x00, 0x00, 0x00, 0x62,
+                  0x00, 0x00, 0x00, 0x63,
+                  0x00, 0x00, 0x00, 0x64})),
+              "abcdabcd");
+}
+
+TEST(iconv_lite, stateful_utf7_imap_encoder_and_decoder_cross_chunks) {
+    auto encoder = iconv::get_encoder("utf7imap");
+    auto encoded = iconv::Buffer::concat({
+        encoder.write("你"),
+        encoder.write("好"),
+        encoder.end(),
+    });
+    EXPECT_EQ(encoded.toString("latin1"), "&T2BZfQ-");
+
+    auto decoder = iconv::get_decoder("utf7imap");
+    EXPECT_EQ(decoder.write(iconv::Buffer::from("&T2")), "");
+    EXPECT_EQ(decoder.write(iconv::Buffer::from("BZf")), "");
+    EXPECT_EQ(decoder.write(iconv::Buffer::from("Q hei&AN8-t")), "你好 heißt");
+    EXPECT_EQ(decoder.end(), "");
+}
+
+TEST(iconv_lite, mutable_default_characters_affect_future_converters) {
+    const auto old_single = iconv::default_char_single_byte();
+    const auto old_unicode = iconv::default_char_unicode();
+
+    iconv::set_default_char_single_byte("!");
+    EXPECT_EQ(iconv::encode("外", "latin1").toString("hex"), "21");
+
+    iconv::set_default_char_unicode("!");
+    auto decoder = iconv::get_decoder("gbk");
+    EXPECT_EQ(decoder.write(iconv::Buffer::from({0x81})), "");
+    EXPECT_EQ(decoder.end(), "!");
+
+    iconv::set_default_char_single_byte(old_single);
+    iconv::set_default_char_unicode(old_unicode);
+}
+
+TEST(iconv_lite, exposes_polycpp_transform_streams) {
+    EXPECT_TRUE(iconv::supports_streams());
+    iconv::enableStreamingAPI();
+
+    auto encoder = iconv::encodeStream("windows-1251");
+    encoder.write("абв");
+    encoder.write("где");
+    encoder.end();
+    EXPECT_EQ(encoder.read().toString("hex"), "e0e1e2e3e4e5");
+
+    auto decoder = iconv::decode_stream("gbk");
+    decoder.write(iconv::Buffer::from({0x61, 0x81}));
+    decoder.write(iconv::Buffer::from({0x40, 0x61}));
+    decoder.end();
+    EXPECT_EQ(decoder.read().toString("utf8"), "a丂a");
+}

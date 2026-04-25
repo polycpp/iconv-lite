@@ -111,6 +111,7 @@ Legend:
 - [x] targeted tests pass
 - [x] README examples match actual code
 - [x] remaining gaps are documented
+- [x] `docs/test-plan.md` current validation records exact commands run
 
 ## Public Release
 

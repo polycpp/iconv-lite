@@ -23,8 +23,8 @@ TEST(iconv_lite_upstream, utf32_test_vectors) {
     EXPECT_EQ(iconv::encode(test, "utf-32").toString("hex"), std::string("fffe0000") + utf32le_hex);
 
     iconv::EncodeOptions no_bom_be;
-    no_bom_be.add_bom = false;
-    no_bom_be.default_encoding = "ucs4be";
+    no_bom_be.addBOM = false;
+    no_bom_be.defaultEncoding = "ucs4be";
     EXPECT_EQ(iconv::encode(test, "ucs4", no_bom_be).toString("hex"), utf32be_hex);
 
     EXPECT_EQ(iconv::decode(from_hex(std::string("fffe0000") + utf32le_hex), "utf-32"), test);
@@ -32,7 +32,7 @@ TEST(iconv_lite_upstream, utf32_test_vectors) {
     EXPECT_EQ(iconv::decode(iconv::encode(sample, "utf-32-be"), "utf-32"), sample);
 
     iconv::DecodeOptions keep_bom;
-    keep_bom.strip_bom = false;
+    keep_bom.stripBOM = false;
     EXPECT_EQ(iconv::decode(from_hex(std::string("0000feff") + utf32be_hex), "utf-32", keep_bom),
               std::string("\xEF\xBB\xBF", 3) + test);
 }

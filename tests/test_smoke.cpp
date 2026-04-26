@@ -6,20 +6,20 @@
 namespace iconv = polycpp::iconv_lite;
 
 TEST(iconv_lite, canonicalizes_encoding_labels) {
-    EXPECT_EQ(iconv::canonicalize_encoding("ISO_8859-5:1988"), "iso88595");
-    EXPECT_EQ(iconv::canonicalize_encoding("UTF-16LE"), "utf16le");
-    EXPECT_EQ(iconv::canonicalize_encoding("__proto__"), "proto");
+    EXPECT_EQ(iconv::canonicalizeEncoding("ISO_8859-5:1988"), "iso88595");
+    EXPECT_EQ(iconv::canonicalizeEncoding("UTF-16LE"), "utf16le");
+    EXPECT_EQ(iconv::canonicalizeEncoding("__proto__"), "proto");
 }
 
 TEST(iconv_lite, reports_supported_and_unsupported_encodings) {
-    EXPECT_TRUE(iconv::encoding_exists("utf8"));
-    EXPECT_TRUE(iconv::encoding_exists("win1251"));
-    EXPECT_TRUE(iconv::encoding_exists("1251"));
-    EXPECT_TRUE(iconv::encoding_exists("gb18030"));
-    EXPECT_TRUE(iconv::encoding_exists("big5hkscs"));
-    EXPECT_TRUE(iconv::encoding_exists("utf7imap"));
-    EXPECT_FALSE(iconv::encoding_exists("__proto__"));
-    EXPECT_FALSE(iconv::encoding_exists("constructor"));
+    EXPECT_TRUE(iconv::encodingExists("utf8"));
+    EXPECT_TRUE(iconv::encodingExists("win1251"));
+    EXPECT_TRUE(iconv::encodingExists("1251"));
+    EXPECT_TRUE(iconv::encodingExists("gb18030"));
+    EXPECT_TRUE(iconv::encodingExists("big5hkscs"));
+    EXPECT_TRUE(iconv::encodingExists("utf7imap"));
+    EXPECT_FALSE(iconv::encodingExists("__proto__"));
+    EXPECT_FALSE(iconv::encodingExists("constructor"));
 }
 
 TEST(iconv_lite, round_trips_core_internal_encodings) {
@@ -120,7 +120,7 @@ TEST(iconv_lite, handles_utf16_and_utf32_bom_semantics) {
     EXPECT_EQ(iconv::decode(utf16, "utf16"), sample);
 
     iconv::EncodeOptions no_bom;
-    no_bom.add_bom = false;
+    no_bom.addBOM = false;
     EXPECT_EQ(iconv::encode(sample, "utf16", no_bom).toString("hex"), "310061004f042d4e876503263dd8a9dc");
 
     const auto utf32 = iconv::encode(sample, "utf32");
@@ -128,7 +128,7 @@ TEST(iconv_lite, handles_utf16_and_utf32_bom_semantics) {
     EXPECT_EQ(iconv::decode(utf32, "utf32"), sample);
 
     iconv::EncodeOptions utf32be_options;
-    utf32be_options.default_encoding = "utf32be";
+    utf32be_options.defaultEncoding = "utf32be";
     EXPECT_EQ(iconv::encode(sample, "utf32", utf32be_options).toString("hex"),
               "0000feff00000031000000610000044f00004e2d00006587000026030001f4a9");
 }
@@ -138,7 +138,7 @@ TEST(iconv_lite, strips_bom_by_default_for_bom_aware_codecs) {
     EXPECT_EQ(iconv::decode(utf8_bom, "utf8"), "A");
 
     iconv::DecodeOptions keep_bom;
-    keep_bom.strip_bom = false;
+    keep_bom.stripBOM = false;
     EXPECT_EQ(iconv::decode(utf8_bom, "utf8", keep_bom), std::string("\xEF\xBB\xBF", 3) + "A");
 
     const auto latin1_bytes = iconv::Buffer::from({0xEF, 0xBB, 0xBF, 0x41});
@@ -151,10 +151,10 @@ TEST(iconv_lite, throws_for_unknown_encoding) {
 }
 
 TEST(iconv_lite, exposes_dynamic_codec_encoder_and_decoder_apis) {
-    const auto codec = iconv::get_codec("windows-1251");
+    const auto codec = iconv::getCodec("windows-1251");
     EXPECT_EQ(codec.info.canonical, "windows1251");
     EXPECT_EQ(codec.info.converter, "windows1251");
-    EXPECT_FALSE(codec.internal());
+    EXPECT_FALSE(codec.isInternal());
 
     auto encoder = iconv::getEncoder("base64");
     EXPECT_EQ(encoder.write("aGV").length(), 0u);
@@ -162,31 +162,31 @@ TEST(iconv_lite, exposes_dynamic_codec_encoder_and_decoder_apis) {
     EXPECT_EQ(encoder.write("9ybGQ=").toString("latin1"), "world");
     EXPECT_EQ(encoder.end().length(), 0u);
 
-    auto decoder = iconv::get_decoder("utf8");
+    auto decoder = iconv::getDecoder("utf8");
     EXPECT_EQ(decoder.write(iconv::Buffer::from({0xF0})), "");
     EXPECT_EQ(decoder.write(iconv::Buffer::from({0x9F, 0x98})), "");
     EXPECT_EQ(decoder.write(iconv::Buffer::from({0xBB})), "😻");
     EXPECT_EQ(decoder.end(), "");
 
     EXPECT_TRUE(iconv::encodingExists("gb18030"));
-    EXPECT_EQ(iconv::_canonicalizeEncoding("UTF-16LE"), "utf16le");
+    EXPECT_EQ(iconv::canonicalizeEncoding("UTF-16LE"), "utf16le");
 }
 
 TEST(iconv_lite, stateful_decoders_preserve_chunk_boundaries) {
-    auto gbk = iconv::get_decoder("gbk");
+    auto gbk = iconv::getDecoder("gbk");
     EXPECT_EQ(gbk.write(iconv::Buffer::from({0x61, 0x81})), "a");
     EXPECT_EQ(gbk.write(iconv::Buffer::from({0x40, 0x61})), "丂a");
     EXPECT_EQ(gbk.end(), "");
 
-    auto truncated = iconv::get_decoder("gbk");
+    auto truncated = iconv::getDecoder("gbk");
     EXPECT_EQ(truncated.write(iconv::Buffer::from({0x61, 0x81})), "a");
     EXPECT_EQ(truncated.end(), "�");
 
-    auto utf16be = iconv::get_decoder("utf16be");
+    auto utf16be = iconv::getDecoder("utf16be");
     EXPECT_EQ(utf16be.write(iconv::Buffer::from({0x00, 0x61, 0x00})), "a");
     EXPECT_EQ(utf16be.write(iconv::Buffer::from({0x62, 0x00, 0x63})), "bc");
 
-    auto utf32 = iconv::get_decoder("utf32");
+    auto utf32 = iconv::getDecoder("utf32");
     EXPECT_EQ(utf32.write(iconv::Buffer::from({
                   0x00, 0x00, 0x00, 0x61,
                   0x00, 0x00, 0x00, 0x62,
@@ -202,7 +202,7 @@ TEST(iconv_lite, stateful_decoders_preserve_chunk_boundaries) {
 }
 
 TEST(iconv_lite, stateful_utf7_imap_encoder_and_decoder_cross_chunks) {
-    auto encoder = iconv::get_encoder("utf7imap");
+    auto encoder = iconv::getEncoder("utf7imap");
     auto encoded = iconv::Buffer::concat({
         encoder.write("你"),
         encoder.write("好"),
@@ -210,7 +210,7 @@ TEST(iconv_lite, stateful_utf7_imap_encoder_and_decoder_cross_chunks) {
     });
     EXPECT_EQ(encoded.toString("latin1"), "&T2BZfQ-");
 
-    auto decoder = iconv::get_decoder("utf7imap");
+    auto decoder = iconv::getDecoder("utf7imap");
     EXPECT_EQ(decoder.write(iconv::Buffer::from("&T2")), "");
     EXPECT_EQ(decoder.write(iconv::Buffer::from("BZf")), "");
     EXPECT_EQ(decoder.write(iconv::Buffer::from("Q hei&AN8-t")), "你好 heißt");
@@ -218,23 +218,23 @@ TEST(iconv_lite, stateful_utf7_imap_encoder_and_decoder_cross_chunks) {
 }
 
 TEST(iconv_lite, mutable_default_characters_affect_future_converters) {
-    const auto old_single = iconv::default_char_single_byte();
-    const auto old_unicode = iconv::default_char_unicode();
+    const auto old_single = iconv::defaultCharSingleByte();
+    const auto old_unicode = iconv::defaultCharUnicode();
 
-    iconv::set_default_char_single_byte("!");
+    iconv::setDefaultCharSingleByte("!");
     EXPECT_EQ(iconv::encode("外", "latin1").toString("hex"), "21");
 
-    iconv::set_default_char_unicode("!");
-    auto decoder = iconv::get_decoder("gbk");
+    iconv::setDefaultCharUnicode("!");
+    auto decoder = iconv::getDecoder("gbk");
     EXPECT_EQ(decoder.write(iconv::Buffer::from({0x81})), "");
     EXPECT_EQ(decoder.end(), "!");
 
-    iconv::set_default_char_single_byte(old_single);
-    iconv::set_default_char_unicode(old_unicode);
+    iconv::setDefaultCharSingleByte(old_single);
+    iconv::setDefaultCharUnicode(old_unicode);
 }
 
 TEST(iconv_lite, exposes_polycpp_transform_streams) {
-    EXPECT_TRUE(iconv::supports_streams());
+    EXPECT_TRUE(iconv::supportsStreams());
     iconv::enableStreamingAPI();
 
     auto encoder = iconv::encodeStream("windows-1251");
@@ -243,7 +243,7 @@ TEST(iconv_lite, exposes_polycpp_transform_streams) {
     encoder.end();
     EXPECT_EQ(encoder.read().toString("hex"), "e0e1e2e3e4e5");
 
-    auto decoder = iconv::decode_stream("gbk");
+    auto decoder = iconv::decodeStream("gbk");
     decoder.write(iconv::Buffer::from({0x61, 0x81}));
     decoder.write(iconv::Buffer::from({0x40, 0x61}));
     decoder.end();

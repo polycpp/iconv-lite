@@ -921,7 +921,7 @@ struct ResolvedEncoding {
     std::string converter;
     EncodingKind kind = EncodingKind::utf8;
     size_t spec_index = 0;
-    bool bom_aware = false;
+    bool bomAware = false;
 };
 
 std::optional<ResolvedEncoding> resolve_manual(std::string_view canonical) {
@@ -952,7 +952,7 @@ const generated::EncodingEntry* find_generated_entry(std::string_view name) {
 }
 
 ResolvedEncoding resolve_encoding(std::string_view encoding) {
-    auto current = canonicalize_encoding(encoding);
+    auto current = canonicalizeEncoding(encoding);
     for (int depth = 0; depth < 32; ++depth) {
         if (auto manual = resolve_manual(current)) return *manual;
         const auto* entry = find_generated_entry(current);
@@ -970,7 +970,7 @@ ResolvedEncoding resolve_encoding(std::string_view encoding) {
     }
     throw polycpp::TypeError(
         "Encoding not recognized: '" + std::string(encoding) +
-        "' (searched as: '" + canonicalize_encoding(encoding) + "')")
+        "' (searched as: '" + canonicalizeEncoding(encoding) + "')")
         .setCode("ERR_ENCODING_NOT_SUPPORTED");
 }
 
@@ -987,7 +987,7 @@ bool strip_utf8_bom_in_place(std::string& value) {
 
 std::string normalize_default_encoding(std::string_view value, std::string_view fallback, std::string_view expected_auto) {
     if (value.empty()) return std::string(fallback);
-    const auto canonical = canonicalize_encoding(value);
+    const auto canonical = canonicalizeEncoding(value);
     if (expected_auto == "utf16") {
         if (canonical == "utf16be") return "utf16be";
         if (canonical == "utf16le" || canonical == "ucs2" || canonical == "utf16") return "utf16le";
@@ -1012,11 +1012,7 @@ std::string choose_utf16_decode_bytes(const uint8_t* data, size_t length, const 
     }
     if (be > le) return "utf16be";
     if (le > be) return "utf16le";
-    return normalize_default_encoding(options.default_encoding, "utf16le", "utf16");
-}
-
-std::string choose_utf16_decode(const Buffer& input, const DecodeOptions& options) {
-    return choose_utf16_decode_bytes(input.data(), input.length(), options);
+    return normalize_default_encoding(options.defaultEncoding, "utf16le", "utf16");
 }
 
 std::string choose_utf32_decode_bytes(const uint8_t* data, size_t length, const DecodeOptions& options) {
@@ -1041,44 +1037,7 @@ std::string choose_utf32_decode_bytes(const uint8_t* data, size_t length, const 
     }
     if (bmp_be - invalid_be > bmp_le - invalid_le) return "utf32be";
     if (bmp_le - invalid_le > bmp_be - invalid_be) return "utf32le";
-    return normalize_default_encoding(options.default_encoding, "utf32le", "utf32");
-}
-
-std::string choose_utf32_decode(const Buffer& input, const DecodeOptions& options) {
-    return choose_utf32_decode_bytes(input.data(), input.length(), options);
-}
-
-void prepend_bytes(std::vector<uint8_t>& bytes, std::initializer_list<uint8_t> prefix) {
-    bytes.insert(bytes.begin(), prefix.begin(), prefix.end());
-}
-
-Buffer with_bom(std::vector<uint8_t> bytes, const ResolvedEncoding& resolved, const EncodeOptions& options) {
-    bool add = options.add_bom.value_or(resolved.kind == EncodingKind::utf16_auto || resolved.kind == EncodingKind::utf32_auto);
-    if (!resolved.bom_aware || !add) return buffer_from_bytes(bytes);
-
-    switch (resolved.kind) {
-        case EncodingKind::utf8:
-        case EncodingKind::cesu8:
-            prepend_bytes(bytes, {0xEF, 0xBB, 0xBF});
-            break;
-        case EncodingKind::utf16le:
-        case EncodingKind::utf16_auto:
-            prepend_bytes(bytes, {0xFF, 0xFE});
-            break;
-        case EncodingKind::utf16be:
-            prepend_bytes(bytes, {0xFE, 0xFF});
-            break;
-        case EncodingKind::utf32le:
-        case EncodingKind::utf32_auto:
-            prepend_bytes(bytes, {0xFF, 0xFE, 0x00, 0x00});
-            break;
-        case EncodingKind::utf32be:
-            prepend_bytes(bytes, {0x00, 0x00, 0xFE, 0xFF});
-            break;
-        default:
-            break;
-    }
-    return buffer_from_bytes(bytes);
+    return normalize_default_encoding(options.defaultEncoding, "utf32le", "utf32");
 }
 
 bool is_utf7_direct(uint8_t c) noexcept {
@@ -1097,11 +1056,6 @@ bool is_base64_char(uint8_t c, bool imap) noexcept {
 std::string trim_base64_padding(std::string value) {
     while (!value.empty() && value.back() == '=') value.pop_back();
     return value;
-}
-
-std::string maybe_add_utf8_bom(std::string_view input, const ResolvedEncoding& resolved, const EncodeOptions& options) {
-    if (resolved.bom_aware && options.add_bom.value_or(false)) return std::string("\xEF\xBB\xBF", 3) + std::string(input);
-    return std::string(input);
 }
 
 Buffer encode_utf7_like(std::string_view raw_input, bool imap) {
@@ -1199,8 +1153,8 @@ Buffer concat_if_needed(const Buffer& head, const Buffer& tail) {
 }
 
 bool should_add_bom(const ResolvedEncoding& resolved, const EncodeOptions& options) {
-    if (!resolved.bom_aware) return false;
-    return options.add_bom.value_or(resolved.kind == EncodingKind::utf16_auto ||
+    if (!resolved.bomAware) return false;
+    return options.addBOM.value_or(resolved.kind == EncodingKind::utf16_auto ||
                                     resolved.kind == EncodingKind::utf32_auto);
 }
 
@@ -1239,9 +1193,9 @@ void flush_pending_utf16_unit(std::string& out, std::optional<uint16_t>& pending
 stream::StreamOptions to_stream_options(const IconvStreamOptions& options) {
     stream::StreamOptions stream_options;
     stream_options.context = options.context;
-    stream_options.highWaterMark = options.high_water_mark;
-    stream_options.emitClose = options.emit_close;
-    stream_options.autoDestroy = options.auto_destroy;
+    stream_options.highWaterMark = options.highWaterMark;
+    stream_options.emitClose = options.emitClose;
+    stream_options.autoDestroy = options.autoDestroy;
     return stream_options;
 }
 
@@ -1291,7 +1245,7 @@ public:
             case EncodingKind::utf32be:
                 return buffer_from_bytes(encode_utf32(text, false));
             case EncodingKind::utf32_auto: {
-                const auto selected = normalize_default_encoding(options_.default_encoding, "utf32le", "utf32");
+                const auto selected = normalize_default_encoding(options_.defaultEncoding, "utf32le", "utf32");
                 return buffer_from_bytes(encode_utf32(text, selected != "utf32be"));
             }
             case EncodingKind::utf7:
@@ -1322,7 +1276,7 @@ public:
     }
 
     EncodingInfo info() const {
-        return EncodingInfo{requested_, resolved_.canonical, resolved_.converter, resolved_.bom_aware,
+        return EncodingInfo{requested_, resolved_.canonical, resolved_.converter, resolved_.bomAware,
                             resolved_.kind != EncodingKind::sbcs && resolved_.kind != EncodingKind::dbcs};
     }
 
@@ -1407,7 +1361,7 @@ class DecoderState {
 public:
     DecoderState(std::string_view encoding, const DecodeOptions& options)
         : requested_(encoding), resolved_(resolve_encoding(encoding)), options_(options),
-          strip_bom_pending_(resolved_.bom_aware && options_.strip_bom) {
+          strip_bom_pending_(resolved_.bomAware && options_.stripBOM) {
         if (resolved_.kind == EncodingKind::utf8) {
             string_decoder_.emplace("utf8");
         }
@@ -1415,7 +1369,7 @@ public:
 
     DecoderState(const Codec& codec, const DecodeOptions& options)
         : requested_(codec.info.requested), resolved_(resolve_encoding(codec.info.requested)),
-          options_(options), strip_bom_pending_(resolved_.bom_aware && options_.strip_bom) {
+          options_(options), strip_bom_pending_(resolved_.bomAware && options_.stripBOM) {
         if (resolved_.kind == EncodingKind::utf8) {
             string_decoder_.emplace("utf8");
         }
@@ -1430,7 +1384,7 @@ public:
     }
 
     EncodingInfo info() const {
-        return EncodingInfo{requested_, resolved_.canonical, resolved_.converter, resolved_.bom_aware,
+        return EncodingInfo{requested_, resolved_.canonical, resolved_.converter, resolved_.bomAware,
                             resolved_.kind != EncodingKind::sbcs && resolved_.kind != EncodingKind::dbcs};
     }
 
@@ -1521,7 +1475,7 @@ private:
         if (!strip_bom_pending_ || output.empty()) return output;
         const bool stripped = strip_utf8_bom_in_place(output);
         strip_bom_pending_ = false;
-        if (stripped && options_.on_bom_stripped) options_.on_bom_stripped();
+        if (stripped && options_.onBOMStripped) options_.onBOMStripped();
         return output;
     }
 
@@ -1836,7 +1790,7 @@ private:
 
 }  // namespace detail
 
-std::string canonicalize_encoding(std::string_view encoding) {
+std::string canonicalizeEncoding(std::string_view encoding) {
     std::string lower;
     lower.reserve(encoding.size());
     for (unsigned char c : encoding) lower.push_back(static_cast<char>(std::tolower(c)));
@@ -1852,7 +1806,7 @@ std::string canonicalize_encoding(std::string_view encoding) {
     return canonical;
 }
 
-bool encoding_exists(std::string_view encoding) noexcept {
+bool encodingExists(std::string_view encoding) noexcept {
     try {
         (void)resolve_encoding(encoding);
         return true;
@@ -1861,14 +1815,14 @@ bool encoding_exists(std::string_view encoding) noexcept {
     }
 }
 
-EncodingInfo inspect_encoding(std::string_view encoding) {
+EncodingInfo inspectEncoding(std::string_view encoding) {
     auto resolved = resolve_encoding(encoding);
-    return EncodingInfo{std::string(encoding), resolved.canonical, resolved.converter, resolved.bom_aware,
+    return EncodingInfo{std::string(encoding), resolved.canonical, resolved.converter, resolved.bomAware,
                         resolved.kind != EncodingKind::sbcs && resolved.kind != EncodingKind::dbcs};
 }
 
-Codec get_codec(std::string_view encoding) {
-    return Codec{inspect_encoding(encoding)};
+Codec getCodec(std::string_view encoding) {
+    return Codec{inspectEncoding(encoding)};
 }
 
 Encoder Codec::encoder(const EncodeOptions& options) const {
@@ -1925,57 +1879,57 @@ EncodingInfo Decoder::info() const {
     return state_->info();
 }
 
-Encoder get_encoder(std::string_view encoding, const EncodeOptions& options) {
+Encoder getEncoder(std::string_view encoding, const EncodeOptions& options) {
     return Encoder(encoding, options);
 }
 
-Decoder get_decoder(std::string_view encoding, const DecodeOptions& options) {
+Decoder getDecoder(std::string_view encoding, const DecodeOptions& options) {
     return Decoder(encoding, options);
 }
 
-std::string default_char_unicode() {
+std::string defaultCharUnicode() {
     return current_default_unicode();
 }
 
-void set_default_char_unicode(std::string value) {
+void setDefaultCharUnicode(std::string value) {
     std::lock_guard<std::mutex> lock(defaults_mutex());
     default_unicode_storage() = std::move(value);
 }
 
-std::string default_char_single_byte() {
+std::string defaultCharSingleByte() {
     return current_default_single_byte();
 }
 
-void set_default_char_single_byte(std::string value) {
+void setDefaultCharSingleByte(std::string value) {
     std::lock_guard<std::mutex> lock(defaults_mutex());
     default_single_byte_storage() = std::move(value);
 }
 
 Buffer encode(std::string_view input, std::string_view encoding, const EncodeOptions& options) {
-    auto encoder = get_encoder(encoding, options);
+    auto encoder = getEncoder(encoding, options);
     auto head = encoder.write(input);
     return detail::concat_if_needed(head, encoder.end());
 }
 
 std::string decode(const Buffer& input, std::string_view encoding, const DecodeOptions& options) {
-    auto decoder = get_decoder(encoding, options);
+    auto decoder = getDecoder(encoding, options);
     auto head = decoder.write(input);
     return head + decoder.end();
 }
 
-bool supports_streams() noexcept {
+bool supportsStreams() noexcept {
     return true;
 }
 
-void enable_streaming_api() {}
+void enableStreamingAPI() {}
 
 EncodeStream::EncodeStream(std::string_view encoding,
                            const EncodeOptions& options,
-                           const IconvStreamOptions& stream_options)
-    : EncodeStream(Encoder(encoding, options), stream_options) {}
+                           const IconvStreamOptions& streamOptions)
+    : EncodeStream(Encoder(encoding, options), streamOptions) {}
 
-EncodeStream::EncodeStream(Encoder encoder, const IconvStreamOptions& stream_options)
-    : EncodeStream(std::make_shared<detail::EncodeStreamImpl>(std::move(encoder), stream_options)) {}
+EncodeStream::EncodeStream(Encoder encoder, const IconvStreamOptions& streamOptions)
+    : EncodeStream(std::make_shared<detail::EncodeStreamImpl>(std::move(encoder), streamOptions)) {}
 
 EncodeStream::EncodeStream(std::shared_ptr<detail::EncodeStreamImpl> impl)
     : stream::impl::StreamHandle(std::static_pointer_cast<stream::impl::ImplBase>(impl)),
@@ -2008,11 +1962,11 @@ EncodeStream& EncodeStream::collect(std::function<void(Error::Ptr, Buffer)> call
 
 DecodeStream::DecodeStream(std::string_view encoding,
                            const DecodeOptions& options,
-                           const IconvStreamOptions& stream_options)
-    : DecodeStream(Decoder(encoding, options), stream_options) {}
+                           const IconvStreamOptions& streamOptions)
+    : DecodeStream(Decoder(encoding, options), streamOptions) {}
 
-DecodeStream::DecodeStream(Decoder decoder, const IconvStreamOptions& stream_options)
-    : DecodeStream(std::make_shared<detail::DecodeStreamImpl>(std::move(decoder), stream_options)) {}
+DecodeStream::DecodeStream(Decoder decoder, const IconvStreamOptions& streamOptions)
+    : DecodeStream(std::make_shared<detail::DecodeStreamImpl>(std::move(decoder), streamOptions)) {}
 
 DecodeStream::DecodeStream(std::shared_ptr<detail::DecodeStreamImpl> impl)
     : stream::impl::StreamHandle(std::static_pointer_cast<stream::impl::ImplBase>(impl)),
@@ -2043,16 +1997,16 @@ DecodeStream& DecodeStream::collect(std::function<void(Error::Ptr, std::string)>
     return *this;
 }
 
-EncodeStream encode_stream(std::string_view encoding,
-                           const EncodeOptions& options,
-                           const IconvStreamOptions& stream_options) {
-    return EncodeStream(encoding, options, stream_options);
+EncodeStream encodeStream(std::string_view encoding,
+                          const EncodeOptions& options,
+                          const IconvStreamOptions& streamOptions) {
+    return EncodeStream(encoding, options, streamOptions);
 }
 
-DecodeStream decode_stream(std::string_view encoding,
-                           const DecodeOptions& options,
-                           const IconvStreamOptions& stream_options) {
-    return DecodeStream(encoding, options, stream_options);
+DecodeStream decodeStream(std::string_view encoding,
+                          const DecodeOptions& options,
+                          const IconvStreamOptions& streamOptions) {
+    return DecodeStream(encoding, options, streamOptions);
 }
 
 }  // namespace polycpp::iconv_lite

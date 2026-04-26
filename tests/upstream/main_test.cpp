@@ -28,5 +28,5 @@ TEST(iconv_lite_upstream, main_test_core_api_and_aliases) {
     EXPECT_THROW((void)iconv::encode("a", "xxx"), polycpp::TypeError);
     EXPECT_THROW((void)iconv::decode(iconv::Buffer::from("a"), "xxx"), polycpp::TypeError);
     EXPECT_EQ(iconv::encode("外国人", "latin1").toString("latin1"), "???");
-    EXPECT_EQ(iconv::_canonicalizeEncoding("ISO_8859-5:1988"), "iso88595");
+    EXPECT_EQ(iconv::canonicalizeEncoding("ISO_8859-5:1988"), "iso88595");
 }

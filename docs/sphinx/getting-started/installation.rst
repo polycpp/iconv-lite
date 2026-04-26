@@ -73,3 +73,7 @@ Verifying the install
 
 The example prints Windows-1251 bytes for ``Привет`` and then decodes them
 back to UTF-8 text.
+
+Individual example targets use namespaced CMake target names, such as
+``polycpp_iconv_lite_example_convert``, and write runnable binaries under
+``build/examples/``.

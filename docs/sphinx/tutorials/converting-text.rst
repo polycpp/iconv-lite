@@ -26,11 +26,11 @@ resolve to the Shift_JIS codec.
 Checking support
 ----------------
 
-Use ``encoding_exists`` before accepting user-provided labels:
+Use ``encodingExists`` before accepting user-provided labels:
 
 .. code-block:: cpp
 
-   if (!polycpp::iconv_lite::encoding_exists(label)) {
+   if (!polycpp::iconv_lite::encodingExists(label)) {
        throw std::runtime_error("unsupported encoding");
    }
 

@@ -131,7 +131,7 @@ Tests, fixtures, examples, and docs directories:
 - companion libs inspected for reusable APIs: current companion libs under local polycpp companion checkout; no existing encoding-conversion companion exists
 - companion libs selected for reuse: none
 - companion libs rejected or deferred: no separate `safer-buffer` companion; its purpose is already covered by `polycpp::buffer::Buffer`
-- new local abstractions introduced: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `encode`, `decode`, `encoding_exists`, and `canonicalize_encoding`; these model iconv-lite policy, not a new binary buffer type
+- new local abstractions introduced: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `encode`, `decode`, `encodingExists`, and `canonicalizeEncoding`; these model iconv-lite policy, not a new binary buffer type
 - reuse risks or integration gaps: this repo now owns generated table data; regenerate it when the upstream version basis changes and keep provenance documented
 
 ## External SDK and native driver strategy
@@ -172,23 +172,22 @@ Tests, fixtures, examples, and docs directories:
 
 ## Key features to port first
 
-- `encode`, `decode`, `encoding_exists`, `to_encoding`, `from_encoding`, and `canonicalize_encoding`.
-- `get_codec`, `get_encoder`, `get_decoder`, `encode_stream`, `decode_stream`, and mutable replacement defaults using typed C++ APIs.
-- `EncodeOptions::add_bom` and `DecodeOptions::strip_bom` / `on_bom_stripped` / `default_encoding`.
+- `encode`, `decode`, `encodingExists`, `toEncoding`, `fromEncoding`, and `canonicalizeEncoding`.
+- `getCodec`, `getEncoder`, `getDecoder`, `encodeStream`, `decodeStream`, and mutable replacement defaults using typed C++ APIs.
+- `EncodeOptions::addBOM` and `DecodeOptions::stripBOM` / `onBOMStripped` / `defaultEncoding`.
 - Explicit aliases from iconv-lite generated registry data.
 - Internal encodings: UTF-8, UTF-16LE/BE/auto, UTF-32LE/BE/auto, CESU-8, latin1/binary, ASCII, base64, and hex.
 - Generated SBCS/DBCS table codecs with upstream substitution behavior.
 
 ## Features to defer
 
-- Vendoring upstream JavaScript source files.
 - None for the supported C++ API surface.
 
 ## v0 scope
 
 - port version: 0.1.0
 - versioning note: port version is independent from upstream versioning
-- supported APIs: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `canonicalize_encoding`, `encoding_exists`, `get_codec`, `get_encoder`, `get_decoder`, `encode_stream`, `decode_stream`, `enable_streaming_api`, `encode`, `decode`, `to_encoding`, `from_encoding`, replacement-default getters/setters, and JavaScript-name aliases for the upstream API names
+- supported APIs: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `canonicalizeEncoding`, `encodingExists`, `getCodec`, `getEncoder`, `getDecoder`, `encodeStream`, `decodeStream`, `enableStreamingAPI`, `encode`, `decode`, `toEncoding`, `fromEncoding`, and replacement-default getters/setters
 - unsupported APIs: public mutation of JavaScript codec registry/cache internals; browser webpack behavior is not applicable to C++
 - dependency plan: use `polycpp::buffer::Buffer` instead of `safer-buffer`; use generated C++ data from upstream JavaScript tables
 - polycpp modules to use: `polycpp::buffer::Buffer`, `polycpp::stream::Transform`, `polycpp::string_decoder::StringDecoder`, and `polycpp::TypeError`

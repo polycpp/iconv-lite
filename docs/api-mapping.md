@@ -4,20 +4,20 @@
 |---|---|---|---|
 | `iconv.encode(str, encoding, options?)` | `polycpp::iconv_lite::encode(std::string_view, std::string_view, const EncodeOptions&)` | adapted | Returns `polycpp::buffer::Buffer`; input string is UTF-8. |
 | `iconv.decode(buf, encoding, options?)` | `polycpp::iconv_lite::decode(const Buffer&, std::string_view, const DecodeOptions&)` | adapted | Returns UTF-8 `std::string`. |
-| `iconv.encodingExists(encoding)` | `polycpp::iconv_lite::encoding_exists(std::string_view)` | direct | Uses iconv-lite canonical aliases plus generated upstream table entries. |
-| `iconv.toEncoding` | `polycpp::iconv_lite::to_encoding` | direct | Alias to `encode`. |
-| `iconv.fromEncoding` | `polycpp::iconv_lite::from_encoding` | direct | Alias to `decode`. |
-| `iconv._canonicalizeEncoding(encoding)` | `polycpp::iconv_lite::canonicalize_encoding(std::string_view)` | direct | Lowercases, removes non-alphanumeric characters, and strips trailing `:YYYY`. |
-| `iconv.getCodec(encoding)` | `polycpp::iconv_lite::get_codec(std::string_view)` / `getCodec` | adapted | Returns resolved `Codec` metadata plus factories for C++ stateful encoder/decoder objects. |
-| `iconv.getEncoder(encoding, options?)` | `polycpp::iconv_lite::get_encoder(std::string_view, const EncodeOptions&)` / `getEncoder` | adapted | Returns a stateful `Encoder` with `write(std::string_view)` and `end()`. |
-| `iconv.getDecoder(encoding, options?)` | `polycpp::iconv_lite::get_decoder(std::string_view, const DecodeOptions&)` / `getDecoder` | adapted | Returns a stateful `Decoder` with `write(const Buffer&)` and `end()`. |
-| `encodeStream`, `decodeStream`, `enableStreamingAPI` | `encode_stream`, `decode_stream`, `enable_streaming_api` plus JS-name aliases | adapted | Uses `polycpp::stream::Transform`; C++ stream chunks are byte buffers, so `DecodeStream` emits UTF-8 `Buffer` chunks and `collect()` exposes decoded text. |
-| `DecodeOptions.stripBOM` boolean | `DecodeOptions::strip_bom` | direct | Defaults to true. |
-| `DecodeOptions.stripBOM` callback | `DecodeOptions::on_bom_stripped` | adapted | Optional observer called only when an initial BOM is actually removed. |
-| `DecodeOptions.defaultEncoding` | `DecodeOptions::default_encoding` | adapted | Used for UTF-16/UTF-32 auto-detection fallback. |
-| `EncodeOptions.addBOM` | `EncodeOptions::add_bom` | direct | Optional boolean; `utf16` and `utf32` auto encoders default to BOM on. |
-| `EncodeOptions.defaultEncoding` | `EncodeOptions::default_encoding` | adapted | Selects UTF-32 auto encoder endianness and future UTF auto behavior. |
-| `defaultCharUnicode`, `defaultCharSingleByte` | `default_char_unicode`, `set_default_char_unicode`, `default_char_single_byte`, `set_default_char_single_byte` | adapted | C++ uses accessors/setters instead of mutable module properties. Future conversions observe current values. |
+| `iconv.encodingExists(encoding)` | `polycpp::iconv_lite::encodingExists(std::string_view)` | direct | Uses iconv-lite canonical aliases plus generated upstream table entries. |
+| `iconv.toEncoding` | `polycpp::iconv_lite::toEncoding` | direct | Alias to `encode`. |
+| `iconv.fromEncoding` | `polycpp::iconv_lite::fromEncoding` | direct | Alias to `decode`. |
+| `iconv._canonicalizeEncoding(encoding)` | `polycpp::iconv_lite::canonicalizeEncoding(std::string_view)` | adapted | Public C++ API drops the upstream private-style underscore. Lowercases, removes non-alphanumeric characters, and strips trailing `:YYYY`. |
+| `iconv.getCodec(encoding)` | `polycpp::iconv_lite::getCodec(std::string_view)` | adapted | Returns resolved `Codec` metadata plus factories for C++ stateful encoder/decoder objects. |
+| `iconv.getEncoder(encoding, options?)` | `polycpp::iconv_lite::getEncoder(std::string_view, const EncodeOptions&)` | adapted | Returns a stateful `Encoder` with `write(std::string_view)` and `end()`. |
+| `iconv.getDecoder(encoding, options?)` | `polycpp::iconv_lite::getDecoder(std::string_view, const DecodeOptions&)` | adapted | Returns a stateful `Decoder` with `write(const Buffer&)` and `end()`. |
+| `encodeStream`, `decodeStream`, `enableStreamingAPI` | `polycpp::iconv_lite::encodeStream`, `decodeStream`, `enableStreamingAPI` | adapted | Uses `polycpp::stream::Transform`; C++ stream chunks are byte buffers, so `DecodeStream` emits UTF-8 `Buffer` chunks and `collect()` exposes decoded text. |
+| `DecodeOptions.stripBOM` boolean | `DecodeOptions::stripBOM` | direct | Defaults to true. |
+| `DecodeOptions.stripBOM` callback | `DecodeOptions::onBOMStripped` | adapted | Optional observer called only when an initial BOM is actually removed. |
+| `DecodeOptions.defaultEncoding` | `DecodeOptions::defaultEncoding` | adapted | Used for UTF-16/UTF-32 auto-detection fallback. |
+| `EncodeOptions.addBOM` | `EncodeOptions::addBOM` | direct | Optional boolean; `utf16` and `utf32` auto encoders default to BOM on. |
+| `EncodeOptions.defaultEncoding` | `EncodeOptions::defaultEncoding` | adapted | Selects UTF-32 auto encoder endianness and future UTF auto behavior. |
+| `defaultCharUnicode`, `defaultCharSingleByte` | `defaultCharUnicode`, `setDefaultCharUnicode`, `defaultCharSingleByte`, `setDefaultCharSingleByte` | adapted | C++ uses accessors/setters instead of mutable module properties. Future conversions observe current values. |
 | `Buffer` from `safer-buffer` | `polycpp::buffer::Buffer` | adapted | Base polycpp byte container replaces Node Buffer shim. |
 | `Buffer.from(str, enc)` | `polycpp::buffer::Buffer::from(...)` or generated table conversion | adapted | Internal/base64/hex encodings reuse Buffer; legacy encodings use generated upstream SBCS/DBCS tables. |
 | `Buffer.concat(...)` | `polycpp::buffer::Buffer::concat(...)` | direct | Used for BOM prepend and tests. |

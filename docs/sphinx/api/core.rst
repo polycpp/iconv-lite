@@ -40,34 +40,34 @@ Options and diagnostics
 Functions
 ---------
 
-.. doxygenfunction:: polycpp::iconv_lite::canonicalize_encoding
+.. doxygenfunction:: polycpp::iconv_lite::canonicalizeEncoding
 
-.. doxygenfunction:: polycpp::iconv_lite::encoding_exists
+.. doxygenfunction:: polycpp::iconv_lite::encodingExists
 
-.. doxygenfunction:: polycpp::iconv_lite::inspect_encoding
+.. doxygenfunction:: polycpp::iconv_lite::inspectEncoding
 
-.. doxygenfunction:: polycpp::iconv_lite::get_codec
+.. doxygenfunction:: polycpp::iconv_lite::getCodec
 
-.. doxygenfunction:: polycpp::iconv_lite::get_encoder
+.. doxygenfunction:: polycpp::iconv_lite::getEncoder
 
-.. doxygenfunction:: polycpp::iconv_lite::get_decoder
+.. doxygenfunction:: polycpp::iconv_lite::getDecoder
 
-.. doxygenfunction:: polycpp::iconv_lite::default_char_unicode
+.. doxygenfunction:: polycpp::iconv_lite::defaultCharUnicode
 
-.. doxygenfunction:: polycpp::iconv_lite::set_default_char_unicode
+.. doxygenfunction:: polycpp::iconv_lite::setDefaultCharUnicode
 
-.. doxygenfunction:: polycpp::iconv_lite::default_char_single_byte
+.. doxygenfunction:: polycpp::iconv_lite::defaultCharSingleByte
 
-.. doxygenfunction:: polycpp::iconv_lite::set_default_char_single_byte
+.. doxygenfunction:: polycpp::iconv_lite::setDefaultCharSingleByte
 
 .. doxygenfunction:: polycpp::iconv_lite::encode
 
 .. doxygenfunction:: polycpp::iconv_lite::decode
 
-.. doxygenfunction:: polycpp::iconv_lite::supports_streams
+.. doxygenfunction:: polycpp::iconv_lite::supportsStreams
 
-.. doxygenfunction:: polycpp::iconv_lite::enable_streaming_api
+.. doxygenfunction:: polycpp::iconv_lite::enableStreamingAPI
 
-.. doxygenfunction:: polycpp::iconv_lite::encode_stream
+.. doxygenfunction:: polycpp::iconv_lite::encodeStream
 
-.. doxygenfunction:: polycpp::iconv_lite::decode_stream
+.. doxygenfunction:: polycpp::iconv_lite::decodeStream

@@ -2,8 +2,8 @@
 
 ## Unit tests
 
-- `canonicalize_encoding` strips punctuation and trailing `:YYYY` and lowercases labels.
-- `encoding_exists` returns true for common aliases and false for `__proto__`, `constructor`, and unknown labels.
+- `canonicalizeEncoding` strips punctuation and trailing `:YYYY` and lowercases labels.
+- `encodingExists` returns true for common aliases and false for `__proto__`, `constructor`, and unknown labels.
 - UTF-8 encode/decode round trips ASCII and non-ASCII text.
 - Base64 and hex match upstream direction semantics.
 - `binary` maps the low byte of each code point; `latin1` substitutes unrepresentable characters with `?`.
@@ -11,8 +11,8 @@
 - Upstream-derived compatibility fixtures in `tests/upstream/*_test.cpp` cover the major upstream test clusters directly.
 - Untranslatable characters encode as `?` for single-byte encodings.
 - Unknown encodings throw `polycpp::TypeError`.
-- `get_codec`, `get_encoder`, and `get_decoder` expose stateful conversion and preserve chunk-boundary state.
-- `encode_stream` and `decode_stream` transform chunks through `polycpp::stream::Transform`.
+- `getCodec`, `getEncoder`, and `getDecoder` expose stateful conversion and preserve chunk-boundary state.
+- `encodeStream` and `decodeStream` transform chunks through `polycpp::stream::Transform`.
 - Mutable replacement defaults affect future conversions and can be restored.
 
 ## Integration tests
@@ -66,6 +66,8 @@ Commands run on 2026-04-26:
 - `cmake --build build -j$(nproc)`
 - `ctest --test-dir build --output-on-failure`
 - `./build/examples/convert`
+- `./build/examples/bom`
+- `./build/examples/stream`
 - `python3 docs/build.py`
 - `python3 <libgen>/scripts/check-port-validation.py --run-docs-build <iconv-lite>`
 - `python3 <libgen>/scripts/check-public-readiness.py <iconv-lite>`
@@ -74,5 +76,5 @@ Results:
 
 - Build passed without a direct iconv-lite ICU/iconv dependency.
 - 30 GoogleTest cases passed.
-- Example output matched README: `cff0e8e2e5f2` followed by `Привет`.
+- Example outputs matched README and Sphinx example docs.
 - Documentation build, post-implementation validation, and public readiness checks passed.

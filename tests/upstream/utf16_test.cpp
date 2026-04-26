@@ -18,7 +18,7 @@ TEST(iconv_lite_upstream, utf16_test_vectors) {
 
     EXPECT_EQ(iconv::encode(test, "utf-16").toString("hex"), std::string("fffe") + utf16le_hex);
     iconv::EncodeOptions use_utf16le;
-    use_utf16le.default_encoding = "UTF-16LE";
+    use_utf16le.defaultEncoding = "UTF-16LE";
     EXPECT_EQ(iconv::encode(test, "utf-16", use_utf16le).toString("hex"), std::string("fffe") + utf16le_hex);
 
     EXPECT_EQ(iconv::decode(from_hex(std::string("fffe") + utf16le_hex), "utf-16"), test);
@@ -29,6 +29,6 @@ TEST(iconv_lite_upstream, utf16_test_vectors) {
     EXPECT_EQ(iconv::decode(from_hex(utf16le_hex), "utf-16"), test);
 
     iconv::DecodeOptions default_utf16le;
-    default_utf16le.default_encoding = "utf-16le";
+    default_utf16le.defaultEncoding = "utf-16le";
     EXPECT_EQ(iconv::decode(from_hex(utf16le_hex), "utf-16", default_utf16le), test);
 }

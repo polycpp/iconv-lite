@@ -6,17 +6,17 @@ trailing ``:YYYY`` suffix, and strip non-alphanumeric characters.
 
 .. code-block:: cpp
 
-   auto canonical = polycpp::iconv_lite::canonicalize_encoding("ISO_8859-5:1988");
+   auto canonical = polycpp::iconv_lite::canonicalizeEncoding("ISO_8859-5:1988");
    // canonical == "iso88595"
 
 Common aliases such as ``win1251``, ``1251``, ``cp1251``, ``sjis``, ``gbk``,
 ``gb18030``, ``big5hkscs``, ``latin1``, ``binary``, ``utf16le``, and
 ``utf32be`` are handled through explicit aliases and generated upstream table entries.
 
-Use ``inspect_encoding`` when debugging resolution:
+Use ``inspectEncoding`` when debugging resolution:
 
 .. code-block:: cpp
 
-   auto info = polycpp::iconv_lite::inspect_encoding("win1251");
+   auto info = polycpp::iconv_lite::inspectEncoding("win1251");
    // info.canonical == "win1251"
    // info.converter == "windows-1251"

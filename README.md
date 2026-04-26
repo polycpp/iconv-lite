@@ -10,21 +10,26 @@ Initial port based on upstream version: `0.7.2`
 
 Implemented:
 
-- Batch `encode`, `decode`, `to_encoding`, `from_encoding`, `encoding_exists`, and `canonicalize_encoding`.
+- Batch `encode`, `decode`, `toEncoding`, `fromEncoding`, `encodingExists`, and `canonicalizeEncoding`.
 - UTF-8, CESU-8, UTF-7, UTF-7-IMAP, UTF-16LE/BE/auto, UTF-32LE/BE/auto.
 - `base64`, `hex`, `binary`, ASCII, latin1, Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK, GB18030, Big5, EUC-JP, and EUC-KR through upstream generated tables and aliases.
 - BOM stripping and prepend behavior for BOM-aware encodings.
-- BOM-strip notification through `DecodeOptions::on_bom_stripped`.
+- BOM-strip notification through `DecodeOptions::onBOMStripped`.
 - `polycpp::buffer::Buffer` as the byte boundary.
-- Stateful low-level `get_codec`/`get_encoder`/`get_decoder` APIs, with
-  JavaScript-name aliases `getCodec`, `getEncoder`, and `getDecoder`.
+- Stateful low-level `getCodec`/`getEncoder`/`getDecoder` APIs.
 - `EncodeStream`/`DecodeStream` transform streams through
-  `polycpp::stream`, plus `encode_stream`, `decode_stream`, and
-  `enable_streaming_api` compatibility hooks.
-- Mutable replacement defaults through `set_default_char_unicode` and
-  `set_default_char_single_byte`.
+  `polycpp::stream`, plus `encodeStream`, `decodeStream`, and
+  `enableStreamingAPI` compatibility hooks.
+- Mutable replacement defaults through `setDefaultCharUnicode` and
+  `setDefaultCharSingleByte`.
 
-This repo does not imply full parity with upstream `iconv-lite`. Implemented and deferred behavior is tracked in `docs/research.md`, `docs/api-mapping.md`, and `docs/divergences.md`.
+This repo does not imply JavaScript runtime parity with upstream `iconv-lite`.
+Implemented behavior and unsupported runtime-specific behavior are tracked in
+`docs/research.md`, `docs/api-mapping.md`, and `docs/divergences.md`.
+
+The public API uses polycpp camelCase naming. The namespace and include path use
+`iconv_lite` because C++ identifiers cannot contain the upstream package
+hyphen.
 
 ## Prerequisites
 
@@ -47,6 +52,13 @@ cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ./build/examples/convert
 ```
+
+Examples are built as namespaced CMake targets and emitted under
+`build/examples/`:
+
+- `polycpp_iconv_lite_example_convert` -> `build/examples/convert`
+- `polycpp_iconv_lite_example_bom` -> `build/examples/bom`
+- `polycpp_iconv_lite_example_stream` -> `build/examples/stream`
 
 ## Regenerating Encoding Tables
 

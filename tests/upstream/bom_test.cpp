@@ -23,27 +23,27 @@ TEST(iconv_lite_upstream, bom_test_vectors) {
     EXPECT_EQ(iconv::decode(utf16be_body, "utf16be"), sample);
 
     iconv::DecodeOptions keep_bom;
-    keep_bom.strip_bom = false;
+    keep_bom.stripBOM = false;
     EXPECT_EQ(iconv::decode(iconv::Buffer::concat({utf8_bom, iconv::Buffer::from(sample)}), "utf8", keep_bom),
               std::string("\xEF\xBB\xBF", 3) + sample);
     EXPECT_EQ(iconv::decode(utf16le_body, "utf16", keep_bom), std::string("\xEF\xBB\xBF", 3) + sample);
     EXPECT_EQ(iconv::decode(utf16be_body, "utf16be", keep_bom), std::string("\xEF\xBB\xBF", 3) + sample);
 
-    iconv::EncodeOptions add_bom;
-    add_bom.add_bom = true;
-    EXPECT_EQ(iconv::encode(sample, "utf8", add_bom).toString("hex"),
+    iconv::EncodeOptions addBOM;
+    addBOM.addBOM = true;
+    EXPECT_EQ(iconv::encode(sample, "utf8", addBOM).toString("hex"),
               iconv::Buffer::concat({utf8_bom, iconv::Buffer::from(sample)}).toString("hex"));
-    EXPECT_EQ(iconv::encode(sample, "utf16le", add_bom).toString("hex"),
+    EXPECT_EQ(iconv::encode(sample, "utf16le", addBOM).toString("hex"),
               iconv::Buffer::concat({utf16le_bom, iconv::encode(sample, "utf16le")}).toString("hex"));
-    EXPECT_EQ(iconv::encode(sample, "utf16be", add_bom).toString("hex"),
+    EXPECT_EQ(iconv::encode(sample, "utf16be", addBOM).toString("hex"),
               iconv::Buffer::concat({utf16be_bom, iconv::encode(sample, "utf16be")}).toString("hex"));
 
-    const auto utf7_with_bom = iconv::encode(sample, "utf7", add_bom);
+    const auto utf7_with_bom = iconv::encode(sample, "utf7", addBOM);
     EXPECT_NE(iconv::encode(sample, "utf7").toString("hex"), utf7_with_bom.toString("hex"));
     EXPECT_EQ(iconv::decode(utf7_with_bom, "utf7"), sample);
 
     iconv::EncodeOptions no_bom;
-    no_bom.add_bom = false;
+    no_bom.addBOM = false;
     EXPECT_EQ(iconv::encode(sample, "utf16", no_bom).toString("hex"),
               iconv::encode(sample, "utf16le").toString("hex"));
 }
@@ -56,7 +56,7 @@ TEST(iconv_lite_upstream, bom_test_strip_callback) {
 
     bool bom_stripped = false;
     iconv::DecodeOptions options;
-    options.on_bom_stripped = [&] {
+    options.onBOMStripped = [&] {
         bom_stripped = true;
     };
 
@@ -68,16 +68,16 @@ TEST(iconv_lite_upstream, bom_test_strip_callback) {
     EXPECT_FALSE(bom_stripped);
 
     bom_stripped = false;
-    options.strip_bom = false;
+    options.stripBOM = false;
     EXPECT_EQ(iconv::decode(with_bom, "utf8", options), std::string("\xEF\xBB\xBF", 3) + sample);
     EXPECT_FALSE(bom_stripped);
 
     int stateful_calls = 0;
     iconv::DecodeOptions stateful_options;
-    stateful_options.on_bom_stripped = [&] {
+    stateful_options.onBOMStripped = [&] {
         ++stateful_calls;
     };
-    auto decoder = iconv::get_decoder("utf8", stateful_options);
+    auto decoder = iconv::getDecoder("utf8", stateful_options);
     EXPECT_EQ(decoder.write(iconv::Buffer::from({0xEF})), "");
     EXPECT_EQ(decoder.write(iconv::Buffer::from({0xBB, 0xBF, 0x41})), "A");
     EXPECT_EQ(decoder.end(), "");

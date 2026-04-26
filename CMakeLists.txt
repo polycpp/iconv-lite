@@ -56,9 +56,7 @@ if(POLYCPP_ICONV_LITE_BUILD_TESTS)
     )
     FetchContent_MakeAvailable(googletest)
 
-    add_executable(test_smoke tests/test_smoke.cpp)
-    target_link_libraries(test_smoke PRIVATE polycpp_iconv_lite GTest::gtest_main)
-    add_executable(test_upstream_compat
+    set(POLYCPP_ICONV_LITE_UPSTREAM_TEST_SOURCES
         tests/upstream/big5_test.cpp
         tests/upstream/bom_test.cpp
         tests/upstream/cesu8_test.cpp
@@ -73,10 +71,16 @@ if(POLYCPP_ICONV_LITE_BUILD_TESTS)
         tests/upstream/utf32_test.cpp
         tests/upstream/utf7_test.cpp
     )
-    target_link_libraries(test_upstream_compat PRIVATE polycpp_iconv_lite GTest::gtest_main)
+
+    add_executable(polycpp_iconv_lite_test_smoke tests/test_smoke.cpp)
+    target_link_libraries(polycpp_iconv_lite_test_smoke PRIVATE polycpp::iconv_lite GTest::gtest_main)
+
+    add_executable(polycpp_iconv_lite_test_upstream_compat ${POLYCPP_ICONV_LITE_UPSTREAM_TEST_SOURCES})
+    target_link_libraries(polycpp_iconv_lite_test_upstream_compat PRIVATE polycpp::iconv_lite GTest::gtest_main)
+
     include(GoogleTest)
-    gtest_discover_tests(test_smoke)
-    gtest_discover_tests(test_upstream_compat)
+    gtest_discover_tests(polycpp_iconv_lite_test_smoke)
+    gtest_discover_tests(polycpp_iconv_lite_test_upstream_compat)
 endif()
 
 option(POLYCPP_ICONV_LITE_BUILD_EXAMPLES "Build examples" OFF)
@@ -84,9 +88,11 @@ if(POLYCPP_ICONV_LITE_BUILD_EXAMPLES)
     file(GLOB POLYCPP_ICONV_LITE_EXAMPLES CONFIGURE_DEPENDS examples/*.cpp)
     foreach(example_source IN LISTS POLYCPP_ICONV_LITE_EXAMPLES)
         get_filename_component(example_name "${example_source}" NAME_WE)
-        add_executable("${example_name}" "${example_source}")
-        target_link_libraries("${example_name}" PRIVATE polycpp_iconv_lite)
-        set_target_properties("${example_name}" PROPERTIES
+        set(example_target "polycpp_iconv_lite_example_${example_name}")
+        add_executable("${example_target}" "${example_source}")
+        target_link_libraries("${example_target}" PRIVATE polycpp::iconv_lite)
+        set_target_properties("${example_target}" PROPERTIES
+            OUTPUT_NAME "${example_name}"
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
         )
     endforeach()

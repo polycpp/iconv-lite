@@ -9,15 +9,15 @@
 
 ## Supported Behavior
 
-- Batch `encode`, `decode`, `to_encoding`, `from_encoding`, `encoding_exists`, and `canonicalize_encoding`.
+- Batch `encode`, `decode`, `toEncoding`, `fromEncoding`, `encodingExists`, and `canonicalizeEncoding`.
 - UTF-8, UTF-16LE/BE/auto, UTF-32LE/BE/auto, CESU-8, latin1/binary, ASCII, base64, and hex.
 - Generated-table legacy encodings such as Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK, GB18030, Big5, EUC-JP, and EUC-KR.
 - UTF-7 and UTF-7-IMAP are implemented locally to match iconv-lite byte behavior for direct characters and modified base64 shifts.
 - BOM stripping and prepending for BOM-aware UTF encodings.
-- BOM-strip notification is available through `DecodeOptions::on_bom_stripped`.
+- BOM-strip notification is available through `DecodeOptions::onBOMStripped`.
 - Encode substitution for unrepresentable characters follows upstream SBCS/DBCS default-character behavior.
-- Stateful `get_codec`, `get_encoder`, and `get_decoder` APIs preserve chunk-boundary state for base64, DBCS, UTF-7, UTF-16, and UTF-32.
-- `encode_stream` and `decode_stream` use `polycpp::stream::Transform`, with JavaScript-name aliases available for compatibility.
+- Stateful `getCodec`, `getEncoder`, and `getDecoder` APIs preserve chunk-boundary state for base64, DBCS, UTF-7, UTF-16, and UTF-32.
+- `encodeStream` and `decodeStream` use `polycpp::stream::Transform`.
 - Mutable replacement defaults are available through setter/getter functions.
 
 ## Deferred Behavior
@@ -36,6 +36,6 @@
 ## Compatibility Notes
 
 - `binary` follows Node/iconv-lite internal low-byte behavior and intentionally differs from `latin1` for characters outside ISO-8859-1.
-- `utf16` and `utf32` auto encoders add a BOM by default unless `add_bom=false`.
+- `utf16` and `utf32` auto encoders add a BOM by default unless `addBOM=false`.
 - Unknown labels throw `polycpp::TypeError` rather than returning partial output.
 - Generated tables are based on upstream `iconv-lite@0.7.2`; update the generator and fixtures when changing the upstream version basis.

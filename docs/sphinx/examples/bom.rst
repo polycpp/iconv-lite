@@ -1,37 +1,15 @@
-BOM options
-===========
+BOM-sensitive payloads
+======================
 
 ``examples/bom.cpp`` shows both sides of BOM handling: observing a stripped
 BOM while decoding and requesting a BOM while encoding.
 
-.. code-block:: cpp
+Use this when your integration touches text formats where a leading BOM may
+appear or be required: CSV exports, XML files, office-system imports, UTF-16
+files, or partner feeds that use BOMs for encoding detection.
 
-   #include <iostream>
-
-   #include <polycpp/iconv_lite/iconv_lite.hpp>
-
-   int main() {
-       namespace iconv = polycpp::iconv_lite;
-
-       auto bytes = iconv::Buffer::concat({
-           iconv::Buffer::from({0xEF, 0xBB, 0xBF}),
-           iconv::Buffer::from("hello"),
-       });
-
-       bool stripped = false;
-       iconv::DecodeOptions decodeOptions;
-       decodeOptions.onBOMStripped = [&] {
-           stripped = true;
-       };
-
-       std::cout << iconv::decode(bytes, "utf8", decodeOptions) << "\n";
-       std::cout << (stripped ? "BOM stripped" : "BOM kept") << "\n";
-
-       iconv::EncodeOptions encodeOptions;
-       encodeOptions.addBOM = true;
-       std::cout << iconv::encode("hello", "utf8", encodeOptions).toString("hex") << "\n";
-       return 0;
-   }
+.. literalinclude:: ../../../examples/bom.cpp
+   :language: cpp
 
 Expected output:
 
@@ -40,3 +18,7 @@ Expected output:
    hello
    BOM stripped
    efbbbf68656c6c6f
+
+The callback is an observer: it runs only when a leading BOM is actually
+removed. Set ``DecodeOptions::stripBOM`` to ``false`` if the U+FEFF character
+must remain part of the decoded text.

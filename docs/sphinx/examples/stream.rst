@@ -1,32 +1,15 @@
 Streaming conversion
 ====================
 
-``examples/stream.cpp`` uses the transform stream wrappers. They share the
-same stateful encoder and decoder implementations as ``getEncoder`` and
-``getDecoder``.
+``examples/stream.cpp`` uses the transform stream wrappers. They share the same
+stateful encoder and decoder implementations as ``getEncoder`` and
+``getDecoder``, but expose them through ``polycpp::stream::Transform``.
 
-.. code-block:: cpp
+Use streams when the surrounding code already uses polycpp stream plumbing, or
+when conversion should be one stage in a larger byte-processing pipeline.
 
-   #include <iostream>
-
-   #include <polycpp/iconv_lite/iconv_lite.hpp>
-
-   int main() {
-       namespace iconv = polycpp::iconv_lite;
-
-       auto encoder = iconv::encodeStream("windows-1251");
-       encoder.write("абв");
-       encoder.write("где");
-       encoder.end();
-       std::cout << encoder.read().toString("hex") << "\n";
-
-       auto decoder = iconv::decodeStream("gbk");
-       decoder.write(iconv::Buffer::from({0x61, 0x81}));
-       decoder.write(iconv::Buffer::from({0x40, 0x61}));
-       decoder.end();
-       std::cout << decoder.read().toString("utf8") << "\n";
-       return 0;
-   }
+.. literalinclude:: ../../../examples/stream.cpp
+   :language: cpp
 
 Expected output:
 
@@ -34,3 +17,7 @@ Expected output:
 
    e0e1e2e3e4e5
    a丂a
+
+For one-shot payloads, prefer ``encode`` and ``decode``. For custom chunk loops,
+prefer ``getEncoder`` and ``getDecoder``. Use ``encodeStream`` and
+``decodeStream`` when a transform stream fits the rest of the application.

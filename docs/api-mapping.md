@@ -11,7 +11,8 @@
 | `iconv.getCodec(encoding)` | `polycpp::iconv_lite::getCodec(std::string_view)` | adapted | Returns resolved `Codec` metadata plus factories for C++ stateful encoder/decoder objects. |
 | `iconv.getEncoder(encoding, options?)` | `polycpp::iconv_lite::getEncoder(std::string_view, const EncodeOptions&)` | adapted | Returns a stateful `Encoder` with `write(std::string_view)` and `end()`. |
 | `iconv.getDecoder(encoding, options?)` | `polycpp::iconv_lite::getDecoder(std::string_view, const DecodeOptions&)` | adapted | Returns a stateful `Decoder` with `write(const Buffer&)` and `end()`. |
-| `encodeStream`, `decodeStream`, `enableStreamingAPI` | `polycpp::iconv_lite::encodeStream`, `decodeStream`, `enableStreamingAPI` | adapted | Uses `polycpp::stream::Transform`; C++ stream chunks are byte buffers, so `DecodeStream` emits UTF-8 `Buffer` chunks and `collect()` exposes decoded text. |
+| `encodeStream`, `decodeStream` | `polycpp::iconv_lite::encodeStream`, `decodeStream` | adapted | Uses `polycpp::stream::Transform`; C++ stream chunks are byte buffers, so `DecodeStream` emits UTF-8 `Buffer` chunks and `collect()` exposes decoded text. |
+| `enableStreamingAPI` | not exposed | not applicable | Node stream monkey-patching is unnecessary because C++ stream support is always compiled into the companion. |
 | `DecodeOptions.stripBOM` boolean | `DecodeOptions::stripBOM` | direct | Defaults to true. |
 | `DecodeOptions.stripBOM` callback | `DecodeOptions::onBOMStripped` | adapted | Optional observer called only when an initial BOM is actually removed. |
 | `DecodeOptions.defaultEncoding` | `DecodeOptions::defaultEncoding` | adapted | Used for UTF-16/UTF-32 auto-detection fallback. |

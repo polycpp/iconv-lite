@@ -417,18 +417,6 @@ std::string decode(const Buffer& input,
                    const DecodeOptions& options = {});
 
 /**
- * @brief Streaming support is always available in this C++ companion.
- * @since 1.0.0
- */
-bool supportsStreams() noexcept;
-
-/**
- * @brief No-op compatibility hook matching iconv-lite enableStreamingAPI().
- * @since 1.0.0
- */
-void enableStreamingAPI();
-
-/**
  * @brief Create a transform stream that encodes UTF-8 text chunks.
  * @since 1.0.0
  */

@@ -1923,12 +1923,6 @@ std::string decode(const Buffer& input, std::string_view encoding, const DecodeO
     return head + decoder.end();
 }
 
-bool supportsStreams() noexcept {
-    return true;
-}
-
-void enableStreamingAPI() {}
-
 EncodeStream::EncodeStream(std::string_view encoding,
                            const EncodeOptions& options,
                            const IconvStreamOptions& streamOptions)

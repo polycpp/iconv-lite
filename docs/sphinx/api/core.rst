@@ -64,10 +64,6 @@ Functions
 
 .. doxygenfunction:: polycpp::iconv_lite::decode
 
-.. doxygenfunction:: polycpp::iconv_lite::supportsStreams
-
-.. doxygenfunction:: polycpp::iconv_lite::enableStreamingAPI
-
 .. doxygenfunction:: polycpp::iconv_lite::encodeStream
 
 .. doxygenfunction:: polycpp::iconv_lite::decodeStream

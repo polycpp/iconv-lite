@@ -234,9 +234,6 @@ TEST(iconv_lite, mutable_default_characters_affect_future_converters) {
 }
 
 TEST(iconv_lite, exposes_polycpp_transform_streams) {
-    EXPECT_TRUE(iconv::supportsStreams());
-    iconv::enableStreamingAPI();
-
     auto encoder = iconv::encodeStream("windows-1251");
     encoder.write("абв");
     encoder.write("где");

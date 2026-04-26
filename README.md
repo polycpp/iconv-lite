@@ -18,8 +18,7 @@ Implemented:
 - `polycpp::buffer::Buffer` as the byte boundary.
 - Stateful low-level `getCodec`/`getEncoder`/`getDecoder` APIs.
 - `EncodeStream`/`DecodeStream` transform streams through
-  `polycpp::stream`, plus `encodeStream`, `decodeStream`, and
-  `enableStreamingAPI` compatibility hooks.
+  `polycpp::stream`, plus `encodeStream` and `decodeStream`.
 - Mutable replacement defaults through `setDefaultCharUnicode` and
   `setDefaultCharSingleByte`.
 

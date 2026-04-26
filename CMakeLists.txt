@@ -60,10 +60,12 @@ if(POLYCPP_ICONV_LITE_BUILD_TESTS)
         tests/upstream/big5_test.cpp
         tests/upstream/bom_test.cpp
         tests/upstream/cesu8_test.cpp
+        tests/upstream/dbcs_test.cpp
         tests/upstream/cyrillic_test.cpp
         tests/upstream/gbk_test.cpp
         tests/upstream/greek_test.cpp
         tests/upstream/main_test.cpp
+        tests/upstream/sbcs_test.cpp
         tests/upstream/shiftjis_test.cpp
         tests/upstream/streams_test.cpp
         tests/upstream/turkish_test.cpp

@@ -149,7 +149,7 @@ Tests, fixtures, examples, and docs directories:
 - native substitution risk: high; a platform converter can differ from iconv-lite aliases, UTF-7 behavior, GB18030 mapping details, surrogate handling, and substitution rules
 - upstream implementation data to preserve: generated SBCS/DBCS tables, encoding alias registry, BOM defaults, UTF-7/UTF-7-IMAP logic, CESU-8 behavior, and default `?` encode substitution
 - generated or vendored data plan: commit generated C++ table data derived from the published `iconv-lite@0.7.2` npm artifact; do not vendor upstream JavaScript source files
-- compatibility fixture strategy: keep byte-level fixtures generated from upstream for representative SBCS, DBCS, UTF, BOM, alias, unknown-label, untranslatable-character, stream chunking, and GB18030 edge behavior; `tests/test_upstream_compat.cpp` records the upstream test files each cluster was adapted from
+- compatibility fixture strategy: keep byte-level fixtures generated from upstream for representative SBCS, DBCS, UTF, BOM, alias, unknown-label, untranslatable-character, stream chunking, and GB18030 edge behavior; `tests/upstream/*_test.cpp` files mirror the upstream test files each cluster was adapted from
 
 ## Security and fail-closed review
 

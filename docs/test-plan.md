@@ -8,7 +8,7 @@
 - Base64 and hex match upstream direction semantics.
 - `binary` maps the low byte of each code point; `latin1` substitutes unrepresentable characters with `?`.
 - Windows-1251, ISO-8859-15, GBK/GB18030, Shift_JIS, EUC-KR, UTF-7, UTF-7-IMAP, and CESU-8 sample vectors match upstream-generated expected bytes.
-- Upstream-derived compatibility fixtures in `tests/test_upstream_compat.cpp` cover the major upstream test clusters directly.
+- Upstream-derived compatibility fixtures in `tests/upstream/*_test.cpp` cover the major upstream test clusters directly.
 - Untranslatable characters encode as `?` for single-byte encodings.
 - Unknown encodings throw `polycpp::TypeError`.
 - `get_codec`, `get_encoder`, and `get_decoder` expose stateful conversion and preserve chunk-boundary state.
@@ -26,15 +26,20 @@
 
 ## Compatibility tests adapted from upstream
 
-- Implemented locally in `tests/test_upstream_compat.cpp`; lower-level state and stream regressions also remain in `tests/test_smoke.cpp`.
-- Adapt `test/main-test.js` for core API, aliases, unknown labels, base64, hex, latin1, and untranslatable replacement.
-- Adapt `test/bom-test.js` for UTF-8/UTF-16 BOM stripping and BOM prepend.
-- Adapt `test/utf16-test.js` for UTF-16BE bytes, UTF-16 auto BOM detection, and odd-length handling.
-- Adapt `test/utf32-test.js` for UTF-32LE/BE and auto BOM behavior.
-- Adapt `test/utf7-test.js` and `test/cesu8-test.js` for RFC/example vectors and surrogate-byte behavior.
-- Adapt `test/streams-test.js` for chunk-boundary behavior and `collect()` helpers through the C++ stream API.
-- Adapt representative per-encoding tests from `test/cyrillic-test.js`, `test/greek-test.js`, `test/turkish-test.js`, `test/gbk-test.js`, `test/big5-test.js`, and `test/shiftjis-test.js`.
-- Adapt GB18030 four-byte, incomplete-sequence, Euro, and GB18030:2005 mapping cases from `test/gbk-test.js`.
+- Implemented locally under `tests/upstream/`; lower-level state and stream regressions also remain in `tests/test_smoke.cpp`.
+- `test/main-test.js` -> `tests/upstream/main_test.cpp` for core API, aliases, unknown labels, base64, hex, latin1, and untranslatable replacement.
+- `test/bom-test.js` -> `tests/upstream/bom_test.cpp` for UTF-8/UTF-16 BOM stripping and BOM prepend.
+- `test/utf16-test.js` -> `tests/upstream/utf16_test.cpp` for UTF-16BE bytes, UTF-16 auto BOM detection, and odd-length handling.
+- `test/utf32-test.js` -> `tests/upstream/utf32_test.cpp` for UTF-32LE/BE and auto BOM behavior.
+- `test/utf7-test.js` -> `tests/upstream/utf7_test.cpp` for RFC/example vectors and shift handling.
+- `test/cesu8-test.js` -> `tests/upstream/cesu8_test.cpp` for surrogate-byte behavior.
+- `test/streams-test.js` -> `tests/upstream/streams_test.cpp` for chunk-boundary behavior and `collect()` helpers through the C++ stream API.
+- `test/cyrillic-test.js` -> `tests/upstream/cyrillic_test.cpp` for Cyrillic encodings, aliases, and substitution.
+- `test/greek-test.js` -> `tests/upstream/greek_test.cpp` for Greek encodings and substitution.
+- `test/turkish-test.js` -> `tests/upstream/turkish_test.cpp` for Windows-1254 vectors and substitution.
+- `test/big5-test.js` -> `tests/upstream/big5_test.cpp` for Big5 and CP950 vectors.
+- `test/gbk-test.js` -> `tests/upstream/gbk_test.cpp` for GBK, GB18030 four-byte, incomplete-sequence, Euro, and GB18030:2005 mapping cases.
+- `test/shiftjis-test.js` -> `tests/upstream/shiftjis_test.cpp` for Shift_JIS and extension vectors.
 
 ## Security and fail-closed tests
 
@@ -68,6 +73,6 @@ Commands run on 2026-04-25:
 Results:
 
 - Build passed without a direct iconv-lite ICU/iconv dependency.
-- 25 GoogleTest cases passed.
+- 29 GoogleTest cases passed.
 - Example output matched README: `cff0e8e2e5f2` followed by `Привет`.
 - Documentation build, post-implementation validation, and public readiness checks passed.

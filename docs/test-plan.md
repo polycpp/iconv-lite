@@ -26,6 +26,8 @@
 - Documentation build succeeds with Doxygen and Sphinx.
 - Real service-backed e2e coverage: not applicable; this is not an external service, database, or network protocol client.
 - Stateful parser/session-state coverage: low-level encoder/decoder tests cover base64 carry state, DBCS incomplete byte sequences, UTF-7-IMAP base64 state, and UTF-16/UTF-32 auto-detection chunks.
+- UTF-32 scalar-boundary coverage checks U+0000, U+D7FF, U+E000, U+FFFF, U+10000, U+10FFFF, surrogate-range values, and out-of-range values.
+- Stream chunk-boundary coverage includes UTF-8 multibyte characters and `ucs2` surrogate-pair bytes split across chunks.
 
 ## Compatibility tests adapted from upstream
 
@@ -81,7 +83,7 @@ Commands run on 2026-04-26:
 Results:
 
 - Build passed without a direct iconv-lite ICU/iconv dependency.
-- 36 GoogleTest cases passed.
+- 38 GoogleTest cases passed.
 - A one-off `.d.ts` probe also confirmed all 412 labels from `.tmp/npm-package/types/encodings.d.ts` returned true from `encodingExists`.
 - Example outputs matched README and Sphinx example docs.
 - Documentation build, post-implementation validation, and public readiness checks passed.

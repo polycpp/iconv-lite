@@ -84,3 +84,32 @@ TEST(iconv_lite_upstream, streams_test_chunk_boundaries_and_collect) {
     collected_encoder.end();
     EXPECT_TRUE(encode_collected);
 }
+
+TEST(iconv_lite_upstream, streams_utf8_and_ucs2_chunk_boundaries) {
+    // Complements upstream streams-test.js coverage for internal utf8 and ucs2
+    // decoders when a single character spans several stream chunks.
+    auto utf8 = iconv::decodeStream("utf8");
+    utf8.write(iconv::Buffer::from({0xE4}));
+    utf8.write(iconv::Buffer::from({0xB8, 0x82}));
+    utf8.end();
+    EXPECT_EQ(utf8.read().toString("utf8"), "丂");
+
+    auto utf8_surrogate_pair = iconv::decodeStream("utf8");
+    utf8_surrogate_pair.write(iconv::Buffer::from({0xF0}));
+    utf8_surrogate_pair.write(iconv::Buffer::from({0x9F, 0x98}));
+    utf8_surrogate_pair.write(iconv::Buffer::from({0xBB}));
+    utf8_surrogate_pair.end();
+    EXPECT_EQ(utf8_surrogate_pair.read().toString("utf8"), "😻");
+
+    auto ucs2 = iconv::decodeStream("ucs2");
+    ucs2.write(iconv::Buffer::from({0x3D}));
+    ucs2.write(iconv::Buffer::from({0xD8, 0x3B}));
+    ucs2.write(iconv::Buffer::from({0xDE}));
+    ucs2.end();
+    EXPECT_EQ(ucs2.read().toString("utf8"), "😻");
+
+    auto utf8_encoder = iconv::encodeStream("utf8");
+    utf8_encoder.write("丂");
+    utf8_encoder.end();
+    EXPECT_EQ(utf8_encoder.read().toString("hex"), "e4b882");
+}

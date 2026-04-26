@@ -70,6 +70,14 @@ struct DecodeOptions {
     bool strip_bom = true;
 
     /**
+     * @brief Optional observer called when an initial BOM is actually stripped.
+     *
+     * This models iconv-lite's `stripBOM` callback form while keeping the C++
+     * option that controls stripping as an explicit boolean.
+     */
+    std::function<void()> on_bom_stripped;
+
+    /**
      * @brief Fallback endianness for UTF-16/UTF-32 auto detection.
      *
      * Accepted values include `utf16le`, `utf16be`, `utf32le`, and `utf32be`.

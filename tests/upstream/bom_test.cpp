@@ -47,3 +47,39 @@ TEST(iconv_lite_upstream, bom_test_vectors) {
     EXPECT_EQ(iconv::encode(sample, "utf16", no_bom).toString("hex"),
               iconv::encode(sample, "utf16le").toString("hex"));
 }
+
+TEST(iconv_lite_upstream, bom_test_strip_callback) {
+    // Adapted from upstream test/bom-test.js.
+    constexpr auto sample = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<俄语>данные</俄语>";
+    const auto utf8_bom = from_hex("efbbbf");
+    const auto with_bom = iconv::Buffer::concat({utf8_bom, iconv::Buffer::from(sample)});
+
+    bool bom_stripped = false;
+    iconv::DecodeOptions options;
+    options.on_bom_stripped = [&] {
+        bom_stripped = true;
+    };
+
+    EXPECT_EQ(iconv::decode(with_bom, "utf8", options), sample);
+    EXPECT_TRUE(bom_stripped);
+
+    bom_stripped = false;
+    EXPECT_EQ(iconv::decode(iconv::Buffer::from(sample), "utf8", options), sample);
+    EXPECT_FALSE(bom_stripped);
+
+    bom_stripped = false;
+    options.strip_bom = false;
+    EXPECT_EQ(iconv::decode(with_bom, "utf8", options), std::string("\xEF\xBB\xBF", 3) + sample);
+    EXPECT_FALSE(bom_stripped);
+
+    int stateful_calls = 0;
+    iconv::DecodeOptions stateful_options;
+    stateful_options.on_bom_stripped = [&] {
+        ++stateful_calls;
+    };
+    auto decoder = iconv::get_decoder("utf8", stateful_options);
+    EXPECT_EQ(decoder.write(iconv::Buffer::from({0xEF})), "");
+    EXPECT_EQ(decoder.write(iconv::Buffer::from({0xBB, 0xBF, 0x41})), "A");
+    EXPECT_EQ(decoder.end(), "");
+    EXPECT_EQ(stateful_calls, 1);
+}

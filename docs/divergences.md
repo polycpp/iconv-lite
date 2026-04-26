@@ -14,6 +14,7 @@
 - Generated-table legacy encodings such as Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK, GB18030, Big5, EUC-JP, and EUC-KR.
 - UTF-7 and UTF-7-IMAP are implemented locally to match iconv-lite byte behavior for direct characters and modified base64 shifts.
 - BOM stripping and prepending for BOM-aware UTF encodings.
+- BOM-strip notification is available through `DecodeOptions::on_bom_stripped`.
 - Encode substitution for unrepresentable characters follows upstream SBCS/DBCS default-character behavior.
 - Stateful `get_codec`, `get_encoder`, and `get_decoder` APIs preserve chunk-boundary state for base64, DBCS, UTF-7, UTF-16, and UTF-32.
 - `encode_stream` and `decode_stream` use `polycpp::stream::Transform`, with JavaScript-name aliases available for compatibility.
@@ -21,16 +22,16 @@
 
 ## Deferred Behavior
 
-- Callback form of `stripBOM`.
-- Browser bundling behavior.
-- Public mutation of codec cache internals such as `_codecDataCache`.
-- Exact JavaScript object registry mutation through `iconv.encodings`; C++ codec definitions are compiled from generated tables.
+- None for the supported C++ API surface.
 
 ## Unsupported Runtime-Specific Features
 
+- Browser bundling behavior is not applicable to this C++ companion.
 - JavaScript prototype pollution edge cases are not represented; C++ label lookup has no prototype chain.
 - JavaScript object truthiness/coercion of arbitrary input values is not represented; C++ APIs are typed.
 - Node object-mode or arbitrary JavaScript chunk typing is not represented; polycpp streams carry buffers/text, and `EncodeStream` interprets written chunks as UTF-8 text.
+- Public mutation of codec cache internals such as `_codecDataCache` is not represented.
+- Exact JavaScript object registry mutation through `iconv.encodings` is not represented; C++ codec definitions are compiled from generated tables.
 
 ## Compatibility Notes
 

@@ -28,7 +28,7 @@
 
 - Implemented locally under `tests/upstream/`; lower-level state and stream regressions also remain in `tests/test_smoke.cpp`.
 - `test/main-test.js` -> `tests/upstream/main_test.cpp` for core API, aliases, unknown labels, base64, hex, latin1, and untranslatable replacement.
-- `test/bom-test.js` -> `tests/upstream/bom_test.cpp` for UTF-8/UTF-16 BOM stripping and BOM prepend.
+- `test/bom-test.js` -> `tests/upstream/bom_test.cpp` for UTF-8/UTF-16 BOM stripping, BOM-strip callbacks, and BOM prepend.
 - `test/utf16-test.js` -> `tests/upstream/utf16_test.cpp` for UTF-16BE bytes, UTF-16 auto BOM detection, and odd-length handling.
 - `test/utf32-test.js` -> `tests/upstream/utf32_test.cpp` for UTF-32LE/BE and auto BOM behavior.
 - `test/utf7-test.js` -> `tests/upstream/utf7_test.cpp` for RFC/example vectors and shift handling.
@@ -60,7 +60,7 @@
 
 ## Current validation
 
-Commands run on 2026-04-25:
+Commands run on 2026-04-26:
 
 - `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPOLYCPP_ICONV_LITE_BUILD_EXAMPLES=ON`
 - `cmake --build build -j$(nproc)`
@@ -73,6 +73,6 @@ Commands run on 2026-04-25:
 Results:
 
 - Build passed without a direct iconv-lite ICU/iconv dependency.
-- 29 GoogleTest cases passed.
+- 30 GoogleTest cases passed.
 - Example output matched README: `cff0e8e2e5f2` followed by `Привет`.
 - Documentation build, post-implementation validation, and public readiness checks passed.

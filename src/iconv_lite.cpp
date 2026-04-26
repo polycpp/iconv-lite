@@ -974,14 +974,15 @@ ResolvedEncoding resolve_encoding(std::string_view encoding) {
         .setCode("ERR_ENCODING_NOT_SUPPORTED");
 }
 
-std::string strip_utf8_bom(std::string value) {
+bool strip_utf8_bom_in_place(std::string& value) {
     if (value.size() >= 3 &&
         static_cast<uint8_t>(value[0]) == 0xEF &&
         static_cast<uint8_t>(value[1]) == 0xBB &&
         static_cast<uint8_t>(value[2]) == 0xBF) {
         value.erase(0, 3);
+        return true;
     }
-    return value;
+    return false;
 }
 
 std::string normalize_default_encoding(std::string_view value, std::string_view fallback, std::string_view expected_auto) {
@@ -1185,10 +1186,6 @@ std::vector<uint8_t> encode_binary(std::string_view input) {
     bytes.reserve(units.size());
     for (auto unit : units) bytes.push_back(static_cast<uint8_t>(unit & 0xFF));
     return bytes;
-}
-
-std::string maybe_strip_bom(std::string output, const ResolvedEncoding& resolved, const DecodeOptions& options) {
-    return resolved.bom_aware && options.strip_bom ? strip_utf8_bom(std::move(output)) : output;
 }
 
 }  // namespace
@@ -1522,8 +1519,9 @@ private:
 
     std::string apply_bom_strip(std::string output) {
         if (!strip_bom_pending_ || output.empty()) return output;
-        output = strip_utf8_bom(std::move(output));
+        const bool stripped = strip_utf8_bom_in_place(output);
         strip_bom_pending_ = false;
+        if (stripped && options_.on_bom_stripped) options_.on_bom_stripped();
         return output;
     }
 

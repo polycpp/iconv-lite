@@ -15,6 +15,15 @@ Disable stripping when the BOM is meaningful data:
    options.strip_bom = false;
    auto text = polycpp::iconv_lite::decode(bytes, "utf8", options);
 
+Observe actual BOM removal with ``on_bom_stripped``:
+
+.. code-block:: cpp
+
+   bool removed = false;
+   polycpp::iconv_lite::DecodeOptions options;
+   options.on_bom_stripped = [&] { removed = true; };
+   auto text = polycpp::iconv_lite::decode(bytes, "utf8", options);
+
 For encoding, ``utf16`` and ``utf32`` auto encoders add a BOM by default.
 Other BOM-aware encodings add one only when requested:
 

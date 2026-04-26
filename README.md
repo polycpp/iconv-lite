@@ -14,6 +14,7 @@ Implemented:
 - UTF-8, CESU-8, UTF-7, UTF-7-IMAP, UTF-16LE/BE/auto, UTF-32LE/BE/auto.
 - `base64`, `hex`, `binary`, ASCII, latin1, Windows-125x, ISO-8859-x, KOI8, Shift_JIS, GBK, GB18030, Big5, EUC-JP, and EUC-KR through upstream generated tables and aliases.
 - BOM stripping and prepend behavior for BOM-aware encodings.
+- BOM-strip notification through `DecodeOptions::on_bom_stripped`.
 - `polycpp::buffer::Buffer` as the byte boundary.
 - Stateful low-level `get_codec`/`get_encoder`/`get_decoder` APIs, with
   JavaScript-name aliases `getCodec`, `getEncoder`, and `getDecoder`.

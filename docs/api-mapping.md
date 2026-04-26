@@ -12,7 +12,8 @@
 | `iconv.getEncoder(encoding, options?)` | `polycpp::iconv_lite::get_encoder(std::string_view, const EncodeOptions&)` / `getEncoder` | adapted | Returns a stateful `Encoder` with `write(std::string_view)` and `end()`. |
 | `iconv.getDecoder(encoding, options?)` | `polycpp::iconv_lite::get_decoder(std::string_view, const DecodeOptions&)` / `getDecoder` | adapted | Returns a stateful `Decoder` with `write(const Buffer&)` and `end()`. |
 | `encodeStream`, `decodeStream`, `enableStreamingAPI` | `encode_stream`, `decode_stream`, `enable_streaming_api` plus JS-name aliases | adapted | Uses `polycpp::stream::Transform`; C++ stream chunks are byte buffers, so `DecodeStream` emits UTF-8 `Buffer` chunks and `collect()` exposes decoded text. |
-| `DecodeOptions.stripBOM` | `DecodeOptions::strip_bom` | direct | Defaults to true. Callback form is deferred. |
+| `DecodeOptions.stripBOM` boolean | `DecodeOptions::strip_bom` | direct | Defaults to true. |
+| `DecodeOptions.stripBOM` callback | `DecodeOptions::on_bom_stripped` | adapted | Optional observer called only when an initial BOM is actually removed. |
 | `DecodeOptions.defaultEncoding` | `DecodeOptions::default_encoding` | adapted | Used for UTF-16/UTF-32 auto-detection fallback. |
 | `EncodeOptions.addBOM` | `EncodeOptions::add_bom` | direct | Optional boolean; `utf16` and `utf32` auto encoders default to BOM on. |
 | `EncodeOptions.defaultEncoding` | `EncodeOptions::default_encoding` | adapted | Selects UTF-32 auto encoder endianness and future UTF auto behavior. |

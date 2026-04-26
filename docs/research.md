@@ -174,7 +174,7 @@ Tests, fixtures, examples, and docs directories:
 
 - `encode`, `decode`, `encoding_exists`, `to_encoding`, `from_encoding`, and `canonicalize_encoding`.
 - `get_codec`, `get_encoder`, `get_decoder`, `encode_stream`, `decode_stream`, and mutable replacement defaults using typed C++ APIs.
-- `EncodeOptions::add_bom` and `DecodeOptions::strip_bom` / `default_encoding`.
+- `EncodeOptions::add_bom` and `DecodeOptions::strip_bom` / `on_bom_stripped` / `default_encoding`.
 - Explicit aliases from iconv-lite generated registry data.
 - Internal encodings: UTF-8, UTF-16LE/BE/auto, UTF-32LE/BE/auto, CESU-8, latin1/binary, ASCII, base64, and hex.
 - Generated SBCS/DBCS table codecs with upstream substitution behavior.
@@ -182,16 +182,14 @@ Tests, fixtures, examples, and docs directories:
 ## Features to defer
 
 - Vendoring upstream JavaScript source files.
-- Browser bundling behavior.
-- Callback form of `stripBOM`.
-- Public mutation of JavaScript registry/cache internals such as `iconv.encodings` and `_codecDataCache`.
+- None for the supported C++ API surface.
 
 ## v0 scope
 
 - port version: 0.1.0
 - versioning note: port version is independent from upstream versioning
 - supported APIs: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `canonicalize_encoding`, `encoding_exists`, `get_codec`, `get_encoder`, `get_decoder`, `encode_stream`, `decode_stream`, `enable_streaming_api`, `encode`, `decode`, `to_encoding`, `from_encoding`, replacement-default getters/setters, and JavaScript-name aliases for the upstream API names
-- unsupported APIs: callback-style BOM hooks, browser webpack behavior, and public mutation of JavaScript codec registry/cache internals
+- unsupported APIs: public mutation of JavaScript codec registry/cache internals; browser webpack behavior is not applicable to C++
 - dependency plan: use `polycpp::buffer::Buffer` instead of `safer-buffer`; use generated C++ data from upstream JavaScript tables
 - polycpp modules to use: `polycpp::buffer::Buffer`, `polycpp::stream::Transform`, `polycpp::string_decoder::StringDecoder`, and `polycpp::TypeError`
 - missing polycpp primitives: none blocking; this package intentionally owns iconv-lite table parity inside the companion

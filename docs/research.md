@@ -130,7 +130,7 @@ Tests, fixtures, examples, and docs directories:
 - polycpp core paths inspected: `include/polycpp/buffer/buffer.hpp`, `include/polycpp/buffer/detail/buffer.hpp`, `include/polycpp/string_decoder/string_decoder.hpp`, and `include/polycpp/stream/stream.hpp`
 - polycpp core types/functions selected: `polycpp::buffer::Buffer`, `Buffer::from`, `Buffer::toString`, `Buffer::concat`, `Buffer::data`, `Buffer::length`, `polycpp::string_decoder::StringDecoder`, `polycpp::stream::Transform`, and `polycpp::TypeError`
 - polycpp core types/functions rejected: `polycpp::unicode::EncodingConverter`; this package needs iconv-lite-specific table parity rather than a platform converter abstraction
-- companion libs inspected for reusable APIs: current companion libs under local polycpp companion checkout; no existing encoding-conversion companion exists
+- companion libs inspected for reusable APIs: current local polycpp companion checkouts; no existing encoding-conversion companion exists
 - companion libs selected for reuse: none
 - companion libs rejected or deferred: no separate `safer-buffer` companion; its purpose is already covered by `polycpp::buffer::Buffer`
 - new local abstractions introduced: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `encode`, `decode`, `encodingExists`, and `canonicalizeEncoding`; these model iconv-lite policy, not a new binary buffer type

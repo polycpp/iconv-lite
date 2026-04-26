@@ -17,7 +17,6 @@ if(NOT DEFINED POLYCPP_UNICODE)
     set_property(CACHE POLYCPP_UNICODE PROPERTY STRINGS auto icu builtin)
 endif()
 
-
 if(POLYCPP_SOURCE_DIR AND EXISTS "${POLYCPP_SOURCE_DIR}/CMakeLists.txt")
     FetchContent_Declare(polycpp SOURCE_DIR "${POLYCPP_SOURCE_DIR}")
 else()

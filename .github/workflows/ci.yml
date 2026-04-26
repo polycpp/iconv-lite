@@ -14,11 +14,31 @@ jobs:
   build-test:
     name: Linux build and test
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      POLYCPP_CI_TOKEN: ${{ secrets.POLYCPP_CI_TOKEN }}
 
     steps:
+      - name: Skip when private polycpp access is unavailable
+        if: env.POLYCPP_CI_TOKEN == ''
+        run: |
+          echo "::notice title=CI skipped::Set repository or organization secret POLYCPP_CI_TOKEN with read access to enricohuang/polycpp to run Linux build and test CI."
+
       - uses: actions/checkout@v6
+        if: env.POLYCPP_CI_TOKEN != ''
+        with:
+          path: iconv-lite
+
+      - name: Checkout polycpp core
+        if: env.POLYCPP_CI_TOKEN != ''
+        uses: actions/checkout@v6
+        with:
+          repository: enricohuang/polycpp
+          token: ${{ env.POLYCPP_CI_TOKEN }}
+          path: polycpp
 
       - name: Install system packages
+        if: env.POLYCPP_CI_TOKEN != ''
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -28,15 +48,23 @@ jobs:
             libssl-dev
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPOLYCPP_ICONV_LITE_BUILD_EXAMPLES=ON
+        if: env.POLYCPP_CI_TOKEN != ''
+        working-directory: iconv-lite
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPOLYCPP_ICONV_LITE_BUILD_EXAMPLES=ON -DPOLYCPP_SOURCE_DIR="$GITHUB_WORKSPACE/polycpp"
 
       - name: Build
+        if: env.POLYCPP_CI_TOKEN != ''
+        working-directory: iconv-lite
         run: cmake --build build -j"$(nproc)"
 
       - name: Test
+        if: env.POLYCPP_CI_TOKEN != ''
+        working-directory: iconv-lite
         run: ctest --test-dir build --output-on-failure
 
       - name: Run examples
+        if: env.POLYCPP_CI_TOKEN != ''
+        working-directory: iconv-lite
         run: |
           ./build/examples/convert
           ./build/examples/bom

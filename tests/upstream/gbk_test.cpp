@@ -24,9 +24,18 @@ TEST(iconv_lite_upstream, gb18030_four_byte_and_incomplete_vectors) {
         const char* hex;
     };
     const FourByteFixture fixtures[] = {
+#ifdef _MSC_VER
+        // MSVC converts \u00XX escapes through the execution character set
+        // (code page 1252), which corrupts C1 control characters (U+0080-
+        // U+009F).  Use explicit UTF-8 byte sequences instead.
+        {"\xC2\x80", "81308130"},  // U+0080
+        {"\xC2\x81", "81308131"},  // U+0081
+        {"\xC2\x8B", "81308231"},  // U+008B
+#else
         {"\u0080", "81308130"},
         {"\u0081", "81308131"},
         {"\u008B", "81308231"},
+#endif
         {"ؕ", "81318231"},
         {"㦟", "82318231"},
         {"\xF4\x86\x99\xB7", "e0318231"},

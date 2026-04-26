@@ -9,6 +9,7 @@
 - `binary` maps the low byte of each code point; `latin1` substitutes unrepresentable characters with `?`.
 - Windows-1251, ISO-8859-15, GBK/GB18030, Shift_JIS, EUC-KR, UTF-7, UTF-7-IMAP, and CESU-8 sample vectors match upstream-generated expected bytes.
 - Upstream-derived compatibility fixtures in `tests/upstream/*_test.cpp` cover the major upstream test clusters directly.
+- `types/encodings.d.ts` coverage checks that all 412 literal TypeScript `Encoding` labels are accepted by `encodingExists`.
 - Untranslatable characters encode as `?` for single-byte encodings.
 - Unknown encodings throw `polycpp::TypeError`.
 - `getCodec`, `getEncoder`, and `getDecoder` expose stateful conversion and preserve chunk-boundary state.
@@ -34,6 +35,7 @@
 - `test/utf7-test.js` -> `tests/upstream/utf7_test.cpp` for RFC/example vectors and shift handling.
 - `test/cesu8-test.js` -> `tests/upstream/cesu8_test.cpp` for surrogate-byte behavior.
 - `test/streams-test.js` -> `tests/upstream/streams_test.cpp` for chunk-boundary behavior and `collect()` helpers through the C++ stream API.
+- `types/encodings.d.ts` -> `tests/upstream/types_test.cpp` for full typed encoding-label coverage.
 - `test/cyrillic-test.js` -> `tests/upstream/cyrillic_test.cpp` for Cyrillic encodings, aliases, and substitution.
 - `test/greek-test.js` -> `tests/upstream/greek_test.cpp` for Greek encodings and substitution.
 - `test/turkish-test.js` -> `tests/upstream/turkish_test.cpp` for Windows-1254 vectors and substitution.
@@ -75,6 +77,7 @@ Commands run on 2026-04-26:
 Results:
 
 - Build passed without a direct iconv-lite ICU/iconv dependency.
-- 30 GoogleTest cases passed.
+- 31 GoogleTest cases passed.
+- A one-off `.d.ts` probe also confirmed all 412 labels from `.tmp/npm-package/types/encodings.d.ts` returned true from `encodingExists`.
 - Example outputs matched README and Sphinx example docs.
 - Documentation build, post-implementation validation, and public readiness checks passed.

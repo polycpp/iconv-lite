@@ -67,6 +67,7 @@ if(POLYCPP_ICONV_LITE_BUILD_TESTS)
         tests/upstream/shiftjis_test.cpp
         tests/upstream/streams_test.cpp
         tests/upstream/turkish_test.cpp
+        tests/upstream/types_test.cpp
         tests/upstream/utf16_test.cpp
         tests/upstream/utf32_test.cpp
         tests/upstream/utf7_test.cpp

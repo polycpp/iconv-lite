@@ -6,6 +6,7 @@
 - Upstream has mutable module properties and a lazy JavaScript codec registry; this port exposes typed `Codec`, `Encoder`, and `Decoder` objects plus replacement-character setters.
 - Upstream implements conversion with generated JavaScript tables; this port generates equivalent C++ table data from the published npm artifact.
 - Upstream streams emit JavaScript strings from `decodeStream`; `DecodeStream` emits UTF-8 `Buffer` chunks because polycpp streams are byte-oriented, and exposes decoded text through `collect()`.
+- Upstream declares `skipDecodeWarning` for JavaScript callers that pass strings to `decode`; this port's `decode` accepts byte buffers, so the warning toggle is not applicable.
 
 ## Supported Behavior
 

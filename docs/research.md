@@ -84,7 +84,8 @@ Tests, fixtures, examples, and docs directories:
 ## Important files and why they matter
 
 - `lib/index.js`: source of truth for public API names and alias behavior.
-- `types/encodings.d.ts`: generated list of accepted upstream labels; useful when choosing alias coverage.
+- `lib/index.d.ts`: public TypeScript contract for callable APIs, options, streams, mutable globals, and registry/cache fields.
+- `types/encodings.d.ts`: generated list of accepted upstream labels; the 0.7.2 artifact declares 412 literal labels plus an open-ended string fallback.
 - `README.md`: documents supported encoding families and BOM semantics.
 - `test/main-test.js`: covers `encode`, `decode`, `encodingExists`, aliases, and error handling.
 - `test/bom-test.js`: release-blocking behavior for BOM strip/prepend.
@@ -106,6 +107,7 @@ Tests, fixtures, examples, and docs directories:
 ## Implementation risks discovered from the source layout
 
 - Upstream supports hundreds of labels through generated JS tables; the C++ port generates those tables into a committed C++ header and resolves aliases through the upstream registry.
+- Upstream TypeScript declarations expose registry/cache globals and `skipDecodeWarning`; those are JavaScript runtime affordances rather than C++ API requirements, so they are documented as unsupported or not applicable.
 - `safer-buffer` and Node `Buffer` are upstream implementation dependencies; the C++ port must reuse `polycpp::buffer::Buffer`.
 - Upstream stream APIs depend on Node streams; the C++ port adapts them to `polycpp::stream::Transform` while keeping batch encode/decode deterministic.
 - Encoding aliases such as `win1251`, `1251`, `utf16le`, `utf32le`, `binary`, and `ucs2` need explicit normalization because generated table lookup must follow iconv-lite canonicalized aliases exactly.
@@ -149,7 +151,7 @@ Tests, fixtures, examples, and docs directories:
 - native substitution risk: high; a platform converter can differ from iconv-lite aliases, UTF-7 behavior, GB18030 mapping details, surrogate handling, and substitution rules
 - upstream implementation data to preserve: generated SBCS/DBCS tables, encoding alias registry, BOM defaults, UTF-7/UTF-7-IMAP logic, CESU-8 behavior, and default `?` encode substitution
 - generated or vendored data plan: commit generated C++ table data derived from the published `iconv-lite@0.7.2` npm artifact; do not vendor upstream JavaScript source files
-- compatibility fixture strategy: keep byte-level fixtures generated from upstream for representative SBCS, DBCS, UTF, BOM, alias, unknown-label, untranslatable-character, stream chunking, and GB18030 edge behavior; `tests/upstream/*_test.cpp` files mirror the upstream test files each cluster was adapted from
+- compatibility fixture strategy: keep byte-level fixtures generated from upstream for representative SBCS, DBCS, UTF, BOM, alias, unknown-label, untranslatable-character, stream chunking, and GB18030 edge behavior; `tests/upstream/*_test.cpp` files mirror the upstream test files each cluster was adapted from; `tests/upstream/types_test.cpp` checks the upstream TypeScript `Encoding` union coverage
 
 ## Security and fail-closed review
 
@@ -159,6 +161,7 @@ Tests, fixtures, examples, and docs directories:
 - stateful parser/session-state policy, if protocol client/server: not a protocol client/server; stateful converter policy is limited to chunk-boundary state for encoders/decoders and is covered by low-level and stream tests
 - binary payload type-mapping policy, if protocol client: not a protocol client; binary conversion input/output uses `polycpp::buffer::Buffer` and decoded text uses UTF-8 `std::string`
 - unsupported behavior and fail-closed policy: unsupported labels throw `polycpp::TypeError`; browser bundling and JavaScript registry mutation internals are absent rather than partially emulated
+- TypeScript declaration coverage: all 412 literal labels from `types/encodings.d.ts` are accepted by `encodingExists`; the TypeScript `(string & {})` fallback corresponds to runtime validation for arbitrary labels
 - key, secret, credential, or user-controlled input handling: no secrets; invalid labels and invalid byte sequences are tested, and conversion APIs do not execute code
 - misuse cases that must be tested: unknown encodings, prototype-looking labels such as `__proto__`, invalid/incomplete UTF-16/UTF-32 byte lengths, untranslatable encode characters, BOM stripping disabled, and common alias normalization
 

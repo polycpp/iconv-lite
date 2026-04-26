@@ -18,6 +18,9 @@
 | `EncodeOptions.addBOM` | `EncodeOptions::addBOM` | direct | Optional boolean; `utf16` and `utf32` auto encoders default to BOM on. |
 | `EncodeOptions.defaultEncoding` | `EncodeOptions::defaultEncoding` | adapted | Selects UTF-32 auto encoder endianness and future UTF auto behavior. |
 | `defaultCharUnicode`, `defaultCharSingleByte` | `defaultCharUnicode`, `setDefaultCharUnicode`, `defaultCharSingleByte`, `setDefaultCharSingleByte` | adapted | C++ uses accessors/setters instead of mutable module properties. Future conversions observe current values. |
+| `skipDecodeWarning` | not exposed | not applicable | JavaScript-only compatibility warning for callers that pass strings to `decode`; C++ `decode` accepts `Buffer` bytes. |
+| `encodings`, `_codecDataCache` | not exposed | unsupported | Mutable JavaScript registry/cache internals are replaced by deterministic generated tables plus typed `Codec`/`Encoder`/`Decoder` factories. |
+| `types/encodings.d.ts` `Encoding` union | `encodingExists` and generated alias tables | direct | The 412 literal labels declared by upstream `iconv-lite@0.7.2` are covered by generated table entries plus local internal codecs. The open-ended TypeScript fallback maps to runtime validation. |
 | `Buffer` from `safer-buffer` | `polycpp::buffer::Buffer` | adapted | Base polycpp byte container replaces Node Buffer shim. |
 | `Buffer.from(str, enc)` | `polycpp::buffer::Buffer::from(...)` or generated table conversion | adapted | Internal/base64/hex encodings reuse Buffer; legacy encodings use generated upstream SBCS/DBCS tables. |
 | `Buffer.concat(...)` | `polycpp::buffer::Buffer::concat(...)` | direct | Used for BOM prepend and tests. |

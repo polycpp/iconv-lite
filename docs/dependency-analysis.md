@@ -20,6 +20,7 @@
 - missing declared entries in repo clone: none
 - TypeScript source files detected: none in runtime package; `.d.ts` files are shipped
 - source-vs-published artifact decision: use the published npm artifact as runtime source of truth; `diff -qr` showed the source clone and published artifact match for `lib/`, `encodings/`, and `package.json` at `v0.7.2`
+- TypeScript declaration review: `lib/index.d.ts` was used as the public API contract, and `types/encodings.d.ts` was used to check the 412 literal encoding labels against the C++ resolver.
 
 ## Direct dependencies
 
@@ -90,6 +91,7 @@
 - Implement explicit iconv-lite alias normalization before generated table lookup.
 - Preserve core BOM semantics for UTF-8, UTF-16, and UTF-32.
 - Adapt Node stream and dynamic codec registry APIs to typed C++ surfaces: `Codec`, `Encoder`, `Decoder`, `EncodeStream`, and `DecodeStream`.
+- Treat `skipDecodeWarning`, `encodings`, and `_codecDataCache` as JavaScript runtime internals: document them but do not expose C++ equivalents.
 
 Each porting decision is consistent with the ecosystem reuse decisions recorded in `docs/research.md`.
 

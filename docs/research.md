@@ -186,9 +186,9 @@ Tests, fixtures, examples, and docs directories:
 
 - None for the supported C++ API surface.
 
-## v0 scope
+## 1.0.0 scope
 
-- port version: 0.1.0
+- port version: 1.0.0
 - versioning note: port version is independent from upstream versioning
 - supported APIs: `EncodeOptions`, `DecodeOptions`, `EncodingInfo`, `Codec`, `Encoder`, `Decoder`, `EncodeStream`, `DecodeStream`, `canonicalizeEncoding`, `encodingExists`, `getCodec`, `getEncoder`, `getDecoder`, `encodeStream`, `decodeStream`, `enableStreamingAPI`, `encode`, `decode`, `toEncoding`, `fromEncoding`, and replacement-default getters/setters
 - unsupported APIs: public mutation of JavaScript codec registry/cache internals; browser webpack behavior is not applicable to C++

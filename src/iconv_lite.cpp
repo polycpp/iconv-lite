@@ -1,3 +1,9 @@
+/**
+ * @file iconv_lite.cpp
+ * @brief Compiled implementation for polycpp::iconv_lite.
+ * @since 1.0.0
+ */
+
 #include <polycpp/iconv_lite/iconv_lite.hpp>
 
 #include <polycpp/iconv_lite/detail/generated_tables.hpp>

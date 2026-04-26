@@ -2,7 +2,7 @@
 
 C++ companion port of [iconv-lite](https://www.npmjs.com/package/iconv-lite) for [polycpp](https://github.com/enricohuang/polycpp).
 
-Port version: `0.1.0`
+Port version: `1.0.0`
 
 Initial port based on upstream version: `0.7.2`
 

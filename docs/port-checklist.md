@@ -60,7 +60,7 @@ Legend:
 
 ## Scope
 
-- [x] `v0` scope written in `docs/research.md`
+- [x] initial release scope written in `docs/research.md`
 - [x] deferred features listed in `docs/divergences.md`
 - [x] `polycpp` module dependencies listed
 - [x] missing `polycpp` primitives listed
@@ -70,7 +70,7 @@ Legend:
 
 ## API Mapping
 
-- [x] major public `v0` APIs mapped
+- [x] major public initial-release APIs mapped
 - [x] direct vs adapted vs deferred status recorded
 - [x] dynamic typing adaptations recorded
 - [x] framework object boundary reviewed

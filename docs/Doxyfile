@@ -4,7 +4,7 @@
 
 PROJECT_NAME           = "iconv-lite"
 PROJECT_BRIEF          = "C++ companion port of iconv-lite"
-PROJECT_NUMBER         = 0.1.0
+PROJECT_NUMBER         = 1.0.0
 
 OUTPUT_DIRECTORY       = build/doxygen
 INPUT                  = ../include
